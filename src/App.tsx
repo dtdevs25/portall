@@ -228,7 +228,7 @@ export default function App() {
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, ease: "easeOut" }}
-          className="relative z-10 max-w-md w-full bg-white/10 backdrop-blur-xl border border-white/20 rounded-[2rem] shadow-[0_8px_32px_0_rgba(0,0,0,0.3)] p-8 space-y-8"
+          className="relative z-10 max-w-md w-full bg-white/25 backdrop-blur-2xl border border-white/40 rounded-[2rem] shadow-[0_8px_32px_0_rgba(0,0,0,0.25)] p-8 space-y-8"
         >
           <div className="text-center space-y-4">
             <div className="inline-flex justify-center w-full">
