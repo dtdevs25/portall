@@ -219,135 +219,155 @@ export default function App() {
 
   if (!profile) {
     return (
-      <div className="min-h-screen bg-[#002b5c] flex flex-col items-center justify-center p-4 relative overflow-hidden">
-        {/* Background elements for glassmorphism effect */}
-        <div className="absolute top-[-10%] left-[-10%] w-96 h-96 bg-blue-500 rounded-full mix-blend-multiply filter blur-[128px] opacity-60"></div>
-        <div className="absolute bottom-[-10%] right-[-10%] w-96 h-96 bg-cyan-500 rounded-full mix-blend-multiply filter blur-[128px] opacity-40"></div>
+      <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden"
+        style={{ background: 'linear-gradient(135deg, #010d1f 0%, #021833 40%, #042d5a 70%, #063a72 100%)' }}
+      >
+        {/* Animated orbs */}
+        <div className="absolute top-[-15%] left-[-10%] w-[500px] h-[500px] rounded-full opacity-30 animate-pulse"
+          style={{ background: 'radial-gradient(circle, #1d6db5 0%, transparent 70%)' }} />
+        <div className="absolute bottom-[-20%] right-[-10%] w-[600px] h-[600px] rounded-full opacity-20"
+          style={{ background: 'radial-gradient(circle, #0ea5e9 0%, transparent 70%)' }} />
+        <div className="absolute top-[30%] right-[5%] w-[300px] h-[300px] rounded-full opacity-15"
+          style={{ background: 'radial-gradient(circle, #38bdf8 0%, transparent 70%)' }} />
 
-        <motion.div 
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, ease: "easeOut" }}
-          className="relative z-10 max-w-md w-full bg-white/25 backdrop-blur-2xl border border-white/40 rounded-[2rem] shadow-[0_8px_32px_0_rgba(0,0,0,0.25)] p-8 space-y-8"
+        {/* Grid overlay texture */}
+        <div className="absolute inset-0 opacity-[0.03]"
+          style={{ backgroundImage: 'linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
+
+        <motion.div
+          initial={{ opacity: 0, y: 40, scale: 0.97 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          transition={{ duration: 0.6, ease: 'easeOut' }}
+          className="relative z-10 w-full max-w-md"
         >
-          <div className="text-center space-y-4">
-            <div className="inline-flex justify-center w-full">
-              <img src="/logo.png" alt="RondaDigital" className="w-48 object-contain drop-shadow-md" />
+          {/* Logo above card */}
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.15, duration: 0.5 }}
+            className="flex justify-center mb-6"
+          >
+            <img src="/logo.png" alt="RondaDigital" className="h-16 object-contain drop-shadow-[0_0_20px_rgba(56,189,248,0.4)]" />
+          </motion.div>
+
+          {/* Glass card */}
+          <div className="rounded-[2rem] p-8 space-y-7"
+            style={{
+              background: 'rgba(255,255,255,0.08)',
+              backdropFilter: 'blur(24px)',
+              WebkitBackdropFilter: 'blur(24px)',
+              border: '1px solid rgba(255,255,255,0.18)',
+              boxShadow: '0 20px 60px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.15)'
+            }}
+          >
+            <div className="text-center space-y-1">
+              <h1 className="text-2xl font-black text-white tracking-tight">Bem-vindo</h1>
+              <p className="text-sm text-sky-300/80 font-medium">Segurança e Controle em Tempo Real</p>
             </div>
-            <div>
-              <p className="text-blue-100 font-medium text-sm tracking-wide">Segurança e Controle em Tempo Real</p>
-            </div>
+
+            <AnimatePresence mode="wait">
+              {authMode === 'login' && (
+                <motion.form
+                  key="login"
+                  initial={{ opacity: 0, x: -16 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 16 }}
+                  onSubmit={handleLogin}
+                  className="space-y-5"
+                >
+                  <Input label="E-mail" type="email" theme="glass" value={email}
+                    onChange={(e) => setEmail(e.target.value)} placeholder="seu@email.com" required />
+
+                  <div className="space-y-1">
+                    <Input label="Senha" type="password" theme="glass" value={password}
+                      onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" required />
+                    <div className="flex justify-end pt-1">
+                      <button type="button" onClick={() => setAuthMode('forgot')}
+                        className="text-xs text-sky-300 font-medium hover:text-white transition-colors hover:underline">
+                        Esqueceu a senha?
+                      </button>
+                    </div>
+                  </div>
+
+                  {authError && (
+                    <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}
+                      className="p-3 rounded-xl flex items-center gap-2 text-xs font-medium text-red-200"
+                      style={{ background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)' }}>
+                      <AlertCircle size={14} className="text-red-400 shrink-0" />
+                      {authError}
+                    </motion.div>
+                  )}
+
+                  <button type="submit" disabled={authLoading}
+                    className="w-full py-4 rounded-2xl text-sm font-bold text-white tracking-wide transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+                    style={{
+                      background: authLoading ? 'rgba(37,99,235,0.5)' : 'linear-gradient(135deg, #1d6db5 0%, #0ea5e9 100%)',
+                      boxShadow: authLoading ? 'none' : '0 8px 24px rgba(14,165,233,0.35)'
+                    }}>
+                    {authLoading ? 'Entrando...' : 'Entrar no Sistema'}
+                  </button>
+                </motion.form>
+              )}
+
+              {authMode === 'forgot' && (
+                <motion.form
+                  key="forgot"
+                  initial={{ opacity: 0, x: -16 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 16 }}
+                  onSubmit={handleForgotPassword}
+                  className="space-y-5"
+                >
+                  <div className="text-center space-y-1">
+                    <h2 className="text-lg font-bold text-white">Recuperar Senha</h2>
+                    <p className="text-sm text-sky-300/80">Insira seu e-mail para receber as instruções.</p>
+                  </div>
+
+                  <Input label="E-mail" type="email" theme="glass" value={email}
+                    onChange={(e) => setEmail(e.target.value)} placeholder="seu@email.com" required />
+
+                  {authError && (
+                    <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}
+                      className="p-3 rounded-xl flex items-center gap-2 text-xs font-medium text-red-200"
+                      style={{ background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)' }}>
+                      <AlertCircle size={14} className="text-red-400 shrink-0" />
+                      {authError}
+                    </motion.div>
+                  )}
+
+                  {authSuccess && (
+                    <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}
+                      className="p-3 rounded-xl flex items-center gap-2 text-xs font-medium text-green-200"
+                      style={{ background: 'rgba(34,197,94,0.15)', border: '1px solid rgba(34,197,94,0.3)' }}>
+                      <CheckCircle2 size={14} className="text-green-400 shrink-0" />
+                      {authSuccess}
+                    </motion.div>
+                  )}
+
+                  <button type="submit" disabled={authLoading}
+                    className="w-full py-4 rounded-2xl text-sm font-bold text-white tracking-wide transition-all disabled:opacity-60"
+                    style={{ background: 'linear-gradient(135deg, #1d6db5 0%, #0ea5e9 100%)', boxShadow: '0 8px 24px rgba(14,165,233,0.35)' }}>
+                    {authLoading ? 'Enviando...' : 'Enviar Link de Recuperação'}
+                  </button>
+
+                  <button type="button" onClick={() => setAuthMode('login')}
+                    className="w-full text-center text-sm text-sky-300 font-medium hover:text-white transition-colors">
+                    ← Voltar para o Login
+                  </button>
+                </motion.form>
+              )}
+            </AnimatePresence>
           </div>
 
-          <AnimatePresence mode="wait">
-            {authMode === 'login' && (
-              <motion.form 
-                key="login"
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 20 }}
-                onSubmit={handleLogin} 
-                className="space-y-5"
-              >
-                <Input 
-                  label="E-mail" 
-                  type="email" 
-                  theme="glass"
-                  value={email} 
-                  onChange={(e) => setEmail(e.target.value)} 
-                  placeholder="seu@email.com"
-                  required 
-                />
-                <div className="space-y-1">
-                  <Input 
-                    label="Senha" 
-                    type="password" 
-                    theme="glass"
-                    value={password} 
-                    onChange={(e) => setPassword(e.target.value)} 
-                    placeholder="••••••••"
-                    required 
-                  />
-                  <div className="flex justify-end pt-1">
-                    <button 
-                      type="button"
-                      onClick={() => setAuthMode('forgot')}
-                      className="text-xs text-blue-200 font-medium hover:text-white hover:underline transition-colors"
-                    >
-                      Esqueceu a senha?
-                    </button>
-                  </div>
-                </div>
-
-                {authError && (
-                  <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="p-3 bg-red-500/20 border border-red-500/30 text-white text-xs font-medium rounded-xl flex items-center gap-2">
-                    <AlertCircle size={14} className="text-red-300" />
-                    {authError}
-                  </motion.div>
-                )}
-
-                <Button type="submit" disabled={authLoading} className="w-full py-4 text-sm tracking-wide bg-blue-600 hover:bg-blue-500 text-white border-none shadow-lg shadow-blue-900/50 rounded-2xl">
-                  {authLoading ? 'Entrando...' : 'Entrar no Sistema'}
-                </Button>
-              </motion.form>
-            )}
-
-            {authMode === 'forgot' && (
-              <motion.form 
-                key="forgot"
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 20 }}
-                onSubmit={handleForgotPassword} 
-                className="space-y-5"
-              >
-                <div className="space-y-2 text-center pb-2">
-                  <h2 className="text-xl font-bold text-white tracking-tight">Recuperar Senha</h2>
-                  <p className="text-sm text-blue-200">Insira seu e-mail para receber as instruções.</p>
-                </div>
-
-                <Input 
-                  label="E-mail" 
-                  type="email" 
-                  theme="glass"
-                  value={email} 
-                  onChange={(e) => setEmail(e.target.value)} 
-                  placeholder="seu@email.com"
-                  required 
-                />
-
-                {authError && (
-                  <div className="p-3 bg-red-50 text-red-600 text-xs font-bold rounded-xl flex items-center gap-2">
-                    <AlertCircle size={14} />
-                    {authError}
-                  </div>
-                )}
-
-                {authSuccess && (
-                  <div className="p-3 bg-green-50 text-green-600 text-xs font-bold rounded-xl flex items-center gap-2">
-                    <CheckCircle2 size={14} />
-                    {authSuccess}
-                  </div>
-                )}
-
-                <Button type="submit" disabled={authLoading} className="w-full py-3.5 rounded-2xl">
-                  {authLoading ? 'Enviando...' : 'Enviar Link'}
-                </Button>
-
-                <button 
-                  type="button"
-                  onClick={() => setAuthMode('login')}
-                  className="w-full text-center text-sm text-primary font-bold hover:underline"
-                >
-                  Voltar para o Login
-                </button>
-              </motion.form>
-            )}
-          </AnimatePresence>
+          {/* Footer */}
+          <p className="text-center text-xs text-white/25 mt-6 font-medium">
+            © {new Date().getFullYear()} RondaDigital · Todos os direitos reservados
+          </p>
         </motion.div>
       </div>
     );
   }
+
 
   return (
     <div className="flex flex-col h-screen bg-gray-50 overflow-hidden">
