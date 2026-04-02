@@ -30,7 +30,9 @@ import {
   UserPlus,
   LayoutGrid,
   List,
-  Edit2
+  Edit2,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { Html5QrcodeScanner } from 'html5-qrcode';
@@ -91,7 +93,8 @@ const Input = ({
   type = 'text', 
   placeholder,
   required = false,
-  theme = 'light'
+  theme = 'light',
+  rightElement
 }: { 
   label: string; 
   value: string; 
@@ -100,22 +103,31 @@ const Input = ({
   placeholder?: string;
   required?: boolean;
   theme?: 'light' | 'glass';
+  rightElement?: React.ReactNode;
 }) => (
-  <div className="space-y-1.5">
+  <div className="space-y-1.5 relative">
     <label className={cn("text-sm font-bold ml-1", theme === 'glass' ? "text-white/90" : "text-gray-700")}>{label}</label>
-    <input
-      type={type}
-      value={value}
-      onChange={onChange}
-      placeholder={placeholder}
-      required={required}
-      className={cn(
-        "w-full px-4 py-3 rounded-2xl outline-none transition-all font-medium",
-        theme === 'glass' 
-          ? "bg-white/5 border border-white/20 text-white placeholder:text-white/40 focus:ring-2 focus:ring-white/30 focus:border-white/40"
-          : "bg-gray-50 border border-gray-100 text-gray-900 focus:ring-2 focus:ring-primary/20 focus:border-primary placeholder:text-gray-400"
+    <div className="relative">
+      <input
+        type={type}
+        value={value}
+        onChange={onChange}
+        placeholder={placeholder}
+        required={required}
+        className={cn(
+          "w-full py-3 rounded-2xl outline-none transition-all font-medium",
+          rightElement ? "px-4 pr-12" : "px-4",
+          theme === 'glass' 
+            ? "bg-white/5 border border-white/20 text-white placeholder:text-white/40 focus:ring-2 focus:ring-white/30 focus:border-white/40"
+            : "bg-gray-50 border border-gray-100 text-gray-900 focus:ring-2 focus:ring-primary/20 focus:border-primary placeholder:text-gray-400"
+        )}
+      />
+      {rightElement && (
+        <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center justify-center text-gray-400 hover:text-gray-600 transition-colors">
+          {rightElement}
+        </div>
       )}
-    />
+    </div>
   </div>
 );
 
@@ -132,6 +144,10 @@ export default function App() {
   const [authMode, setAuthMode] = useState<'login' | 'forgot' | 'reset'>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showLoginPassword, setShowLoginPassword] = useState(false);
+  const [showResetPassword, setShowResetPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [resetToken, setResetToken] = useState<string | null>(null);
   const [authError, setAuthError] = useState<string | null>(null);
   const [authSuccess, setAuthSuccess] = useState<string | null>(null);
@@ -211,6 +227,13 @@ export default function App() {
     setAuthError(null);
     setAuthSuccess(null);
     setAuthLoading(true);
+
+    if (password !== confirmPassword) {
+      setAuthError('As senhas não coincidem.');
+      setAuthLoading(false);
+      return;
+    }
+
     try {
       await api.post('/auth/reset-password', { token: resetToken, newPassword: password });
       setAuthSuccess('Senha definida com sucesso! Retornando ao login...');
@@ -301,8 +324,20 @@ export default function App() {
                     onChange={(e) => setEmail(e.target.value)} placeholder="seu@email.com" required />
 
                   <div className="space-y-1">
-                    <Input label="Senha" type="password" theme="light" value={password}
-                      onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" required />
+                    <Input 
+                      label="Senha" 
+                      type={showLoginPassword ? "text" : "password"} 
+                      theme="light" 
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)} 
+                      placeholder="••••••••" 
+                      required 
+                      rightElement={
+                        <button type="button" onClick={() => setShowLoginPassword(!showLoginPassword)}>
+                          {showLoginPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                        </button>
+                      }
+                    />
                     <div className="flex justify-end pt-1">
                       <button type="button" onClick={() => setAuthMode('forgot')}
                         className="text-xs text-primary font-medium hover:text-primary/80 transition-colors hover:underline">
@@ -393,8 +428,35 @@ export default function App() {
                     <p className="text-sm text-gray-500">Defina uma senha segura para o seu acesso.</p>
                   </div>
 
-                  <Input label="Nova Senha" type="password" theme="light" value={password}
-                    onChange={(e) => setPassword(e.target.value)} placeholder="Mínimo de 8 caracteres" required />
+                  <Input 
+                    label="Nova Senha" 
+                    type={showResetPassword ? "text" : "password"} 
+                    theme="light" 
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)} 
+                    placeholder="Mínimo de 8 caracteres" 
+                    required 
+                    rightElement={
+                      <button type="button" onClick={() => setShowResetPassword(!showResetPassword)}>
+                        {showResetPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                      </button>
+                    }
+                  />
+
+                  <Input 
+                    label="Confirme a Nova Senha" 
+                    type={showConfirmPassword ? "text" : "password"} 
+                    theme="light" 
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)} 
+                    placeholder="Confirme a sua senha" 
+                    required 
+                    rightElement={
+                      <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)}>
+                        {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                      </button>
+                    }
+                  />
 
                   {authError && (
                     <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}
