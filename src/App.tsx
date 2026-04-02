@@ -251,10 +251,7 @@ export default function App() {
           >
             <div className="text-center space-y-4">
               <div className="flex justify-center mb-2">
-                <img src="/RondaDigital.png" alt="RondaDigital" className="h-32 object-contain" />
-              </div>
-              <div>
-                <p className="text-sm text-gray-500 font-medium">Segurança e Controle em Tempo Real</p>
+                <img src="/RondaDigital.png" alt="RondaDigital" className="h-28 object-contain" />
               </div>
             </div>
 
@@ -369,7 +366,7 @@ export default function App() {
             <Menu size={24} />
           </button>
           <div className="flex items-center gap-2">
-            <img src="/logo.png" alt="RondaDigital" className="h-10 object-contain" />
+            <img src="/RondaDigital.png" alt="RondaDigital" className="h-10 object-contain" />
           </div>
           <div className="hidden md:block h-6 w-px bg-gray-200 mx-2" />
           <div className="hidden md:block text-sm text-gray-500 font-medium">
@@ -449,7 +446,7 @@ export default function App() {
               >
                 <div className="flex items-center justify-between mb-8">
                   <div className="flex items-center gap-2">
-                    <img src="/logo.png" alt="RondaDigital" className="h-8 object-contain filter brightness-0 invert" />
+                    <img src="/RondaDigital.png" alt="RondaDigital" className="h-8 object-contain filter brightness-0 invert" />
                   </div>
                   <button onClick={() => setIsMenuOpen(false)}>
                     <X size={24} />
