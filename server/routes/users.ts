@@ -294,4 +294,161 @@ router.put('/:id/reset-password', async (req: AuthRequest, res: Response) => {
   }
 });
 
+// ============================================================
+// PUT /api/users/:id - Atualiza dados do usuário
+// ============================================================
+router.put('/:id', async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { email, displayName } = req.body;
+
+    if (!email || !displayName) {
+      res.status(400).json({ error: 'Email e nome são obrigatórios.' });
+      return;
+    }
+
+    const existing = await queryOne<{ id: string }>(
+      'SELECT id FROM users WHERE LOWER(email) = LOWER($1) AND id != $2',
+      [email.trim(), id]
+    );
+
+    if (existing) {
+      res.status(409).json({ error: 'Já existe outro usuário com este e-mail.' });
+      return;
+    }
+
+    const user = await queryOne<{
+      id: string;
+      email: string;
+      display_name: string;
+      role: 'admin' | 'vigilante';
+      is_active: boolean;
+      created_at: string;
+    }>(
+      `UPDATE users SET email = $1, display_name = $2 
+       WHERE id = $3 
+       RETURNING id, email, display_name, role, is_active, created_at`,
+      [email.trim().toLowerCase(), displayName.trim(), id]
+    );
+
+    if (!user) {
+      res.status(404).json({ error: 'Usuário não encontrado.' });
+      return;
+    }
+
+    res.json({
+      uid: user.id,
+      email: user.email,
+      displayName: user.display_name,
+      role: user.role,
+      isActive: user.is_active,
+      createdAt: user.created_at,
+    });
+  } catch (err) {
+    console.error('PUT /users/:id error:', err);
+    res.status(500).json({ error: 'Erro ao atualizar usuário.' });
+  }
+});
+
+// ============================================================
+// DELETE /api/users/:id - Exclui usuário
+// ============================================================
+router.delete('/:id', async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    if (id === req.user?.userId) {
+      res.status(400).json({ error: 'Você não pode excluir sua própria conta.' });
+      return;
+    }
+
+    const deleted = await queryOne<{ id: string }>(
+      'DELETE FROM users WHERE id = $1 RETURNING id',
+      [id]
+    );
+
+    if (!deleted) {
+      res.status(404).json({ error: 'Usuário não encontrado.' });
+      return;
+    }
+
+    res.json({ message: 'Usuário excluído com sucesso.' });
+  } catch (err) {
+    console.error('DELETE /users/:id error:', err);
+    res.status(500).json({ error: 'Erro ao excluir usuário.' });
+  }
+});
+
+// ============================================================
+// POST /api/users/:id/resend-invite - Reenvia link de senha
+// ============================================================
+router.post('/:id/resend-invite', async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    const user = await queryOne<{ id: string; email: string; display_name: string; role: string }>(
+      'SELECT id, email, display_name, role FROM users WHERE id = $1',
+      [id]
+    );
+
+    if (!user) {
+      res.status(404).json({ error: 'Usuário não encontrado.' });
+      return;
+    }
+
+    const resetToken = crypto.randomBytes(64).toString('hex');
+    const resetTokenHash = crypto.createHash('sha256').update(resetToken).digest('hex');
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000); 
+
+    await query(
+      `UPDATE users 
+       SET reset_token = $1, reset_token_expires = $2
+       WHERE id = $3`,
+      [resetTokenHash, expiresAt, user.id]
+    );
+
+    const appUrl = process.env.APP_URL || 'https://ronda.ehspro.com.br';
+    const resetUrl = `${appUrl}/?reset_token=${resetToken}`;
+
+    await mailer.sendMail({
+      from: `"RondaDigital" <${process.env.SMTP_USER}>`,
+      to: user.email,
+      subject: 'Recuperação/Convite para RondaDigital',
+      html: `
+        <!DOCTYPE html>
+        <html lang="pt-BR">
+        <head><meta charset="UTF-8"></head>
+        <body style="font-family: Arial, sans-serif; background-color: #f5f5f5; padding: 40px 20px;">
+          <div style="max-width: 500px; margin: 0 auto; background: white; border-radius: 16px; padding: 40px; box-shadow: 0 4px 20px rgba(0,0,0,0.08);">
+            <div style="text-align: center; margin-bottom: 32px;">
+              <img src="${process.env.APP_URL || 'https://ronda.ehspro.com.br'}/RondaDigital.png" alt="RondaDigital" style="height: 48px; margin-bottom: 8px; object-fit: contain;">
+              <p style="color: #6b7280; margin: 0;">Segurança e Controle em Tempo Real</p>
+            </div>
+            <h2 style="color: #1f2937; font-size: 18px;">Olá, ${user.display_name}!</h2>
+            <p style="color: #4b5563; line-height: 1.6;">
+              Foi solicitado um novo link para você acessar o sistema RondaDigital. 
+              Clique no botão abaixo para definir sua senha de acesso inicial ou acompanhá-la:
+            </p>
+            <div style="text-align: center; margin: 32px 0;">
+              <a href="${resetUrl}" 
+                 style="background-color: #002b5c; color: white; padding: 14px 32px; border-radius: 12px; text-decoration: none; font-weight: bold; display: inline-block;">
+                Cadastrar Nova Senha
+              </a>
+            </div>
+            <p style="color: #9ca3af; font-size: 13px; text-align: center;">
+              Este link é válido por <strong>1 hora</strong>.<br>
+            </p>
+          </div>
+        </body>
+        </html>
+      `,
+    }).catch(err => console.error('Invite email send error:', err));
+
+    res.json({ message: 'E-mail enviado com sucesso.' });
+  } catch (err) {
+    console.error('POST /users/:id/resend-invite error:', err);
+    res.status(500).json({ error: 'Erro ao reenviar link.' });
+  }
+});
+
 export default router;

@@ -990,6 +990,7 @@ function LocaisView() {
   const [locais, setLocais] = useState<Location[]>([]);
   const [isAdding, setIsAdding] = useState(false);
   const [isEditing, setIsEditing] = useState<Location | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error', message: string } | null>(null);
   const [name, setName] = useState('');
@@ -1320,7 +1321,7 @@ function LocaisView() {
               </div>
               <div className="flex gap-3">
                 <Button variant="secondary" className="flex-1" onClick={() => setConfirmDelete(null)}>Cancelar</Button>
-                <Button variant="danger" className="flex-1" onClick={handleDelete}>Excluir</Button>
+                <Button variant="danger" className="flex-1" onClick={handleDelete} disabled={isSubmitting}>{isSubmitting ? 'Excluindo...' : 'Excluir'}</Button>
               </div>
             </Card>
           </motion.div>
@@ -1375,6 +1376,9 @@ function UsuariosView() {
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [search, setSearch] = useState('');
   const [isAdding, setIsAdding] = useState(false);
+  const [isEditingUser, setIsEditingUser] = useState<UserProfile | null>(null);
+  const [confirmDeleteUser, setConfirmDeleteUser] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [newName, setNewName] = useState('');
   const [newEmail, setNewEmail] = useState('');
   const [newRole, setNewRole] = useState<UserRole>('vigilante');
@@ -1400,6 +1404,8 @@ function UsuariosView() {
 
   const handleAddUser = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
+    setIsSubmitting(true);
     try {
       await api.post('/users', {
         email: newEmail,
@@ -1414,6 +1420,60 @@ function UsuariosView() {
     } catch (err: any) {
       console.error('Erro ao cadastrar usuário:', err);
       showFeedback('error', err.error || 'Erro ao cadastrar usuário.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleEditUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!isEditingUser || isSubmitting) return;
+    setIsSubmitting(true);
+    try {
+      await api.put(`/users/${isEditingUser.uid}`, {
+        email: newEmail,
+        displayName: newName
+      });
+      showFeedback('success', 'Usuário atualizado com sucesso!');
+      setIsEditingUser(null);
+      setNewName('');
+      setNewEmail('');
+      fetchUsers();
+    } catch (err: any) {
+      console.error('Erro ao atualizar usuário:', err);
+      showFeedback('error', err.error || 'Erro ao atualizar usuário.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDeleteUser = async () => {
+    if (!confirmDeleteUser || isSubmitting) return;
+    setIsSubmitting(true);
+    try {
+      await api.delete(`/users/${confirmDeleteUser}`);
+      showFeedback('success', 'Usuário excluído com sucesso!');
+      setConfirmDeleteUser(null);
+      fetchUsers();
+    } catch (err: any) {
+      console.error('Erro ao excluir usuário:', err);
+      showFeedback('error', err.error || 'Erro ao excluir usuário.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleResendInvite = async () => {
+    if (!isEditingUser || isSubmitting) return;
+    setIsSubmitting(true);
+    try {
+      await api.post(`/users/${isEditingUser.uid}/resend-invite`, {});
+      showFeedback('success', 'E-mail reenviado com o link de redefinição!');
+    } catch (err: any) {
+      console.error('Erro ao reenviar link:', err);
+      showFeedback('error', err.error || 'Erro ao reenviar o convite de senha.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -1511,7 +1571,7 @@ function UsuariosView() {
                       {u.role}
                     </span>
                   </td>
-                  <td className="px-6 py-5 text-right">
+                  <td className="px-6 py-5 text-right flex items-center justify-end gap-2">
                     <Button 
                       variant="ghost" 
                       className="text-[10px] font-black uppercase tracking-widest text-primary hover:bg-primary/5 rounded-xl px-4 py-2" 
@@ -1519,6 +1579,24 @@ function UsuariosView() {
                     >
                       Alterar Nível
                     </Button>
+                    <button 
+                      className="p-2 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-xl transition-colors border border-blue-100"
+                      onClick={() => {
+                        setNewName(u.displayName);
+                        setNewEmail(u.email);
+                        setIsEditingUser(u);
+                      }}
+                      title="Editar"
+                    >
+                      <Edit2 size={18} />
+                    </button>
+                    <button 
+                      className="p-2 bg-red-50 text-red-600 hover:bg-red-100 rounded-xl transition-colors border border-red-100"
+                      onClick={() => setConfirmDeleteUser(u.uid)}
+                      title="Excluir"
+                    >
+                      <Trash2 size={18} />
+                    </button>
                   </td>
                 </tr>
               ))}
@@ -1580,11 +1658,90 @@ function UsuariosView() {
                   <Button variant="secondary" className="flex-1" type="button" onClick={() => setIsAdding(false)}>
                     Cancelar
                   </Button>
-                  <Button type="submit" className="flex-1">
-                    Cadastrar
+                  <Button type="submit" className="flex-1" disabled={isSubmitting}>
+                    {isSubmitting ? 'Cadastrando...' : 'Cadastrar'}
                   </Button>
                 </div>
               </form>
+            </Card>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Edit User Modal */}
+      {isEditingUser && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <motion.div 
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="max-w-md w-full"
+          >
+            <Card className="p-6 space-y-6 shadow-2xl">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xl font-bold text-gray-900">Editar Usuário</h3>
+                <button onClick={() => setIsEditingUser(null)} className="text-gray-400 hover:text-gray-600">
+                  <X size={24} />
+                </button>
+              </div>
+              <form onSubmit={handleEditUser} className="space-y-4">
+                <Input 
+                  label="Nome Completo" 
+                  value={newName} 
+                  onChange={e => setNewName(e.target.value)} 
+                  required 
+                />
+                <Input 
+                  label="Email" 
+                  type="email"
+                  value={newEmail} 
+                  onChange={e => setNewEmail(e.target.value)} 
+                  required 
+                />
+                <Button 
+                  type="button" 
+                  variant="ghost" 
+                  onClick={handleResendInvite}
+                  disabled={isSubmitting}
+                  className="w-full text-sm text-indigo-600 bg-indigo-50 hover:bg-indigo-100 border border-indigo-100"
+                >
+                  <AlertCircle size={16} /> Reenviar Convite/Senha pro E-mail
+                </Button>
+                <div className="flex gap-3 pt-4">
+                  <Button variant="secondary" className="flex-1" type="button" onClick={() => setIsEditingUser(null)}>
+                    Cancelar
+                  </Button>
+                  <Button type="submit" className="flex-1" disabled={isSubmitting}>
+                    {isSubmitting ? 'Salvando...' : 'Atualizar'}
+                  </Button>
+                </div>
+              </form>
+            </Card>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Delete User Confirmation Modal */}
+      {confirmDeleteUser && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <motion.div 
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="max-w-sm w-full"
+          >
+            <Card className="p-6 text-center space-y-6 shadow-2xl">
+              <div className="h-16 w-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto">
+                <Trash2 size={32} />
+              </div>
+              <div className="space-y-2">
+                <h3 className="text-xl font-bold text-gray-900">Confirmar Exclusão</h3>
+                <p className="text-gray-500">Tem certeza que deseja remover este usuário?</p>
+              </div>
+              <div className="flex gap-3">
+                <Button variant="secondary" className="flex-1" onClick={() => setConfirmDeleteUser(null)}>Cancelar</Button>
+                <Button variant="danger" className="flex-1" onClick={handleDeleteUser} disabled={isSubmitting}>
+                  {isSubmitting ? 'Excluindo...' : 'Excluir'}
+                </Button>
+              </div>
             </Card>
           </motion.div>
         </div>
@@ -1804,3 +1961,4 @@ function LogsView() {
     </div>
   );
 }
+
