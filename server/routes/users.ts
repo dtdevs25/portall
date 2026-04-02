@@ -129,10 +129,10 @@ router.post('/', async (req: AuthRequest, res: Response) => {
         <head><meta charset="UTF-8"></head>
         <body style="font-family: Arial, sans-serif; background-color: #f5f5f5; padding: 40px 20px;">
           <div style="max-width: 500px; margin: 0 auto; background: white; border-radius: 16px; padding: 40px; box-shadow: 0 4px 20px rgba(0,0,0,0.08);">
-            <div style="text-align: center; margin-bottom: 32px;">
-              <h1 style="color: #002b5c; font-size: 24px; margin: 0;">🛡️ RondaDigital</h1>
-              <p style="color: #6b7280; margin: 8px 0 0;">Segurança e Controle em Tempo Real</p>
-            </div>
+              <div style="text-align: center; margin-bottom: 32px;">
+                <img src="${process.env.APP_URL || 'https://ronda.ehspro.com.br'}/RondaDigital.png" alt="RondaDigital" style="height: 48px; margin-bottom: 8px; object-fit: contain;">
+                <p style="color: #6b7280; margin: 0;">Segurança e Controle em Tempo Real</p>
+              </div>
             <h2 style="color: #1f2937; font-size: 18px;">Olá, ${user.display_name}!</h2>
             <p style="color: #4b5563; line-height: 1.6;">
               Você foi convidado para acessar e utilizar o sistema RondaDigital. 

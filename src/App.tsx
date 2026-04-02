@@ -129,14 +129,22 @@ export default function App() {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   // Auth States
-  const [authMode, setAuthMode] = useState<'login' | 'forgot'>('login');
+  const [authMode, setAuthMode] = useState<'login' | 'forgot' | 'reset'>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [resetToken, setResetToken] = useState<string | null>(null);
   const [authError, setAuthError] = useState<string | null>(null);
   const [authSuccess, setAuthSuccess] = useState<string | null>(null);
   const [authLoading, setAuthLoading] = useState(false);
 
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get('reset_token');
+    if (token) {
+      setAuthMode('reset');
+      setResetToken(token);
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
     checkSession();
   }, []);
 
@@ -193,6 +201,30 @@ export default function App() {
     } catch (error: any) {
       console.error('Erro ao recuperar senha:', error);
       setAuthError('Erro ao enviar e-mail. Tente novamente mais tarde.');
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAuthError(null);
+    setAuthSuccess(null);
+    setAuthLoading(true);
+    try {
+      await api.post('/auth/reset-password', { token: resetToken, newPassword: password });
+      setAuthSuccess('Senha definida com sucesso! Retornando ao login...');
+      setTimeout(() => {
+        setAuthMode('login');
+        setPassword('');
+        setAuthSuccess(null);
+      }, 2500);
+    } catch (error: any) {
+      console.error('Erro ao redefinir senha:', error);
+      setAuthError(error.error || 'Link expirado ou inválido. Tente gerar um novo.');
+      if (error.error?.includes('expirado') || error.error?.includes('inválido')) {
+        setTimeout(() => setAuthMode('login'), 3500);
+      }
     } finally {
       setAuthLoading(false);
     }
@@ -343,6 +375,54 @@ export default function App() {
                   <button type="button" onClick={() => setAuthMode('login')}
                     className="w-full text-center text-sm text-primary font-medium hover:text-primary/80 transition-colors">
                     ← Voltar para o Login
+                  </button>
+                </motion.form>
+              )}
+
+              {authMode === 'reset' && (
+                <motion.form
+                  key="reset"
+                  initial={{ opacity: 0, x: -16 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 16 }}
+                  onSubmit={handleResetPassword}
+                  className="space-y-5"
+                >
+                  <div className="text-center space-y-1">
+                    <h2 className="text-lg font-bold text-gray-900">Cadastrar Nova Senha</h2>
+                    <p className="text-sm text-gray-500">Defina uma senha segura para o seu acesso.</p>
+                  </div>
+
+                  <Input label="Nova Senha" type="password" theme="light" value={password}
+                    onChange={(e) => setPassword(e.target.value)} placeholder="Mínimo de 8 caracteres" required />
+
+                  {authError && (
+                    <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}
+                      className="p-3 rounded-xl flex items-center gap-2 text-xs font-medium text-red-700"
+                      style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)' }}>
+                      <AlertCircle size={14} className="text-red-500 shrink-0" />
+                      {authError}
+                    </motion.div>
+                  )}
+
+                  {authSuccess && (
+                     <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}
+                       className="p-3 rounded-xl flex items-center gap-2 text-xs font-medium text-green-700"
+                       style={{ background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.2)' }}>
+                       <CheckCircle2 size={14} className="text-green-500 shrink-0" />
+                       {authSuccess}
+                     </motion.div>
+                  )}
+
+                  <button type="submit" disabled={authLoading || authSuccess !== null}
+                    className="w-full py-4 rounded-2xl text-sm font-bold text-white tracking-wide transition-all disabled:opacity-60"
+                    style={{ background: 'linear-gradient(135deg, #1d6db5 0%, #0ea5e9 100%)', boxShadow: '0 8px 24px rgba(14,165,233,0.35)' }}>
+                    {authLoading ? 'Salvando...' : 'Salvar e Acessar'}
+                  </button>
+
+                  <button type="button" onClick={() => setAuthMode('login')}
+                    className="w-full text-center text-sm text-primary font-medium hover:text-primary/80 transition-colors">
+                    Cancelar e Voltar ao Login
                   </button>
                 </motion.form>
               )}
