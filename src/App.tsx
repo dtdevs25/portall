@@ -252,7 +252,7 @@ export default function App() {
           >
             <div className="text-center space-y-3">
               <div className="flex justify-center">
-                <img src="/icon.png" alt="RondaDigital" className="h-20 object-contain drop-shadow-[0_0_24px_rgba(56,189,248,0.5)]" />
+                <img src="/logo.png" alt="RondaDigital" className="h-20 object-contain drop-shadow-[0_0_24px_rgba(56,189,248,0.5)]" />
               </div>
               <div>
                 <h1 className="text-2xl font-black text-white tracking-tight">Bem-vindo</h1>
@@ -1364,8 +1364,11 @@ function UsuariosView() {
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <h2 className="text-2xl font-bold text-gray-900">Gestão de Usuários</h2>
-        <Button onClick={() => setIsAdding(true)} className="flex items-center gap-2">
+        <div>
+          <h2 className="text-3xl font-black text-gray-900 tracking-tight">Gestão de Usuários</h2>
+          <p className="text-gray-500 font-medium">Cadastre e gerencie a equipe do sistema.</p>
+        </div>
+        <Button onClick={() => setIsAdding(true)} className="py-3 px-6 rounded-2xl">
           <UserPlus size={20} />
           Novo Usuário
         </Button>
@@ -1373,14 +1376,14 @@ function UsuariosView() {
 
       {feedback && (
         <motion.div 
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
           className={cn(
-            "p-4 rounded-2xl flex items-center gap-3 border shadow-sm font-bold",
-            feedback.type === 'success' ? "bg-secondary/10 border-secondary/20 text-secondary" : "bg-red-50 border-red-200 text-red-700"
+            "p-4 rounded-3xl flex items-center gap-3 border shadow-lg font-bold",
+            feedback.type === 'success' ? "bg-secondary text-white border-none" : "bg-red-600 text-white border-none"
           )}
         >
-          {feedback.type === 'success' ? <CheckCircle2 size={20} /> : <AlertCircle size={20} />}
+          {feedback.type === 'success' ? <CheckCircle2 size={24} /> : <AlertCircle size={24} />}
           <span>{feedback.message}</span>
         </motion.div>
       )}
@@ -1569,17 +1572,20 @@ function LogsView() {
   return (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <h2 className="text-2xl font-bold text-gray-900">Relatórios de Rondas</h2>
+        <div>
+          <h2 className="text-3xl font-black text-gray-900 tracking-tight">Relatórios de Rondas</h2>
+          <p className="text-gray-500 font-medium">Consulte relatórios e exporte dados históricos.</p>
+        </div>
         <div className="flex items-center gap-2">
           <Button 
             variant="secondary" 
             onClick={() => setShowFilters(!showFilters)}
-            className={cn("flex items-center gap-2", showFilters && "bg-indigo-50 text-indigo-600 border-indigo-200")}
+            className={cn("py-3 px-6 rounded-2xl gap-2", showFilters && "bg-indigo-50 text-indigo-600 border-indigo-200")}
           >
             <Filter size={18} />
             {showFilters ? 'Ocultar Filtros' : 'Filtros Avançados'}
           </Button>
-          <Button onClick={() => window.print()} variant="ghost" className="text-gray-500">
+          <Button onClick={() => window.print()} variant="ghost" className="py-3 px-6 rounded-2xl text-gray-500">
             <Download size={18} />
             Exportar
           </Button>
