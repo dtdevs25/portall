@@ -55,6 +55,8 @@ app.use(helmet({
 // ============================================================
 const allowedOrigins = [
   APP_URL,
+  'http://controledeacesso.ehspro.com.br',
+  'https://controledeacesso.ehspro.com.br',
   'http://localhost:3000',
   'http://localhost:5173',
 ];
