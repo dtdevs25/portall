@@ -165,6 +165,21 @@ function LoginPage({ onLogin }: { onLogin: (user: UserProfile) => void }) {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [showForgot, setShowForgot] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [forgotMsg, setForgotMsg] = useState('');
+  const [forgotLoading, setForgotLoading] = useState(false);
+
+  const handleForgot = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setForgotLoading(true);
+    setForgotMsg('');
+    try {
+      await api.post('/auth/forgot-password', { email: forgotEmail });
+      setForgotMsg('Link enviado! Verifique seu e-mail.');
+    } catch (err: any) { setForgotMsg(err.error || 'Erro ao enviar.'); }
+    finally { setForgotLoading(false); }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -180,42 +195,128 @@ function LoginPage({ onLogin }: { onLogin: (user: UserProfile) => void }) {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden"
-      style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #0f172a 100%)' }}>
+    <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden bg-slate-950">
+      {/* Background Decor */}
+      <div className="absolute inset-0 bg-grid-white opacity-20" />
+      <div className="absolute inset-0 bg-lines-white" />
+      
       {/* Background glows */}
-      <div className="absolute top-20 left-20 w-96 h-96 rounded-full opacity-20 blur-3xl" style={{ background: 'radial-gradient(circle, #3b82f6, transparent)' }} />
-      <div className="absolute bottom-20 right-20 w-72 h-72 rounded-full opacity-10 blur-3xl" style={{ background: 'radial-gradient(circle, #06b6d4, transparent)' }} />
+      <motion.div 
+        animate={{ 
+          scale: [1, 1.2, 1],
+          opacity: [0.15, 0.25, 0.15] 
+        }}
+        transition={{ duration: 10, repeat: Infinity, ease: "easeInOut" }}
+        className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] rounded-full blur-[120px] bg-blue-600/30" 
+      />
+      <motion.div 
+        animate={{ 
+          scale: [1.2, 1, 1.2],
+          opacity: [0.1, 0.2, 0.1] 
+        }}
+        transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
+        className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full blur-[100px] bg-cyan-500/20" 
+      />
 
-      <motion.div initial={{ opacity: 0, y: 32 }} animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-sm relative z-10">
-        <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl p-8">
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="w-full max-w-sm relative z-10"
+      >
+        <div className="bg-white/95 backdrop-blur-xl rounded-[2rem] shadow-2xl p-8 border border-white/20">
           <div className="text-center mb-8">
-            <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
-              <ShieldCheck size={32} className="text-white" />
+            <div className="w-20 h-20 bg-gradient-to-br from-blue-600 to-blue-700 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-xl shadow-blue-500/20">
+              <ShieldCheck size={40} className="text-white" />
             </div>
-            <h1 className="text-xl font-bold text-slate-900">Gestão de Terceiros</h1>
-            <p className="text-sm text-slate-500 mt-1">Controle de Acesso Industrial</p>
+            <h1 className="text-2xl font-black text-slate-900 tracking-tight">RondaDigital</h1>
+            <p className="text-sm font-medium text-slate-500 mt-1">Gestão de Terceiros e Acesso</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <Input label="E-mail" type="email" value={email} onChange={setEmail} placeholder="usuario@empresa.com" required />
-            <Input label="Senha" type="password" value={password} onChange={setPassword} placeholder="••••••••" required />
+            
+            <div className="space-y-1">
+              <Input label="Senha" type="password" value={password} onChange={setPassword} placeholder="••••••••" required />
+              <div className="flex justify-end">
+                <button type="button" onClick={() => setShowForgot(true)} className="text-[11px] font-bold text-blue-600 hover:text-blue-700 transition-colors uppercase tracking-wider">
+                  Esqueci minha senha
+                </button>
+              </div>
+            </div>
 
             {error && (
-              <div className="flex items-start gap-2 p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700">
+              <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}
+                className="flex items-start gap-2 p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700">
                 <AlertTriangle size={14} className="mt-0.5 shrink-0" />
                 {error}
-              </div>
+              </motion.div>
             )}
 
             <button type="submit" disabled={loading}
-              className="w-full py-3 rounded-xl bg-blue-600 text-white font-semibold text-sm hover:bg-blue-700 transition-all disabled:opacity-60 shadow-lg shadow-blue-500/30">
-              {loading ? 'Entrando...' : 'Entrar no Sistema'}
+              className="w-full py-3.5 rounded-xl bg-blue-600 text-white font-bold text-sm hover:bg-blue-700 transition-all disabled:opacity-60 shadow-lg shadow-blue-500/25 active:scale-95">
+              {loading ? 'Autenticando...' : 'Acessar Sistema'}
             </button>
           </form>
         </div>
+
+        <p className="text-center text-slate-400 text-[10px] mt-8 font-medium uppercase tracking-[0.2em]">
+          Powered by RondaDigital &copy; 2025
+        </p>
       </motion.div>
+
+      {/* Forgot Password Modal */}
+      <AnimatePresence>
+        {showForgot && (
+          <Modal title="Recuperar Senha" onClose={() => setShowForgot(false)}>
+            <form onSubmit={handleForgot} className="space-y-4">
+              <p className="text-sm text-slate-500 leading-relaxed">
+                Insira seu e-mail cadastrado para receber um link de redefinição de senha.
+              </p>
+              <Input label="E-mail" value={forgotEmail} onChange={setForgotEmail} placeholder="seu@email.com" required />
+              {forgotMsg && (
+                <p className={cn('text-xs font-bold text-center', forgotMsg.includes('enviado') ? 'text-emerald-600' : 'text-red-600')}>
+                  {forgotMsg}
+                </p>
+              )}
+              <div className="flex gap-3 pt-2">
+                <Button variant="ghost" className="flex-1" onClick={() => setShowForgot(false)}>Cancelar</Button>
+                <Button type="submit" className="flex-1" disabled={forgotLoading}>
+                  {forgotLoading ? 'Enviando...' : 'Enviar Link'}
+                </Button>
+              </div>
+            </form>
+          </Modal>
+        )}
+      </AnimatePresence>
     </div>
+
+  );
+}
+
+function Header({ profile, onLogout }: { profile: UserProfile; onLogout: () => void }) {
+  return (
+    <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-6 shrink-0 z-30 shadow-sm">
+      <div className="flex items-center gap-3">
+        <div className="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center shadow-lg shadow-blue-500/20">
+          <ShieldCheck size={20} className="text-white" />
+        </div>
+        <div>
+          <p className="font-black text-sm leading-tight text-slate-900 tracking-tight lowercase">Ronda<span className="text-blue-600 uppercase">Digital</span></p>
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{profile.companyName || 'Industrial'}</p>
+        </div>
+      </div>
+      
+      <div className="flex items-center gap-4">
+        <div className="hidden sm:flex flex-col items-end mr-2">
+          <p className="text-xs font-bold text-slate-900">{profile.displayName}</p>
+          <p className="text-[10px] font-medium text-slate-500 uppercase tracking-wider">{profile.role}</p>
+        </div>
+        <div className="h-8 w-[1px] bg-slate-100 hidden sm:block mx-1" />
+        <button onClick={onLogout} className="p-2 rounded-xl text-slate-400 hover:text-red-600 hover:bg-red-50 transition-all group" title="Sair do sistema">
+          <LogOut size={20} className="group-hover:translate-x-0.5 transition-transform" />
+        </button>
+      </div>
+    </header>
   );
 }
 
@@ -223,10 +324,9 @@ function LoginPage({ onLogin }: { onLogin: (user: UserProfile) => void }) {
 
 type TabId = 'portaria' | 'pessoas' | 'empresas_terceiro' | 'treinamentos' | 'atividades' | 'companies' | 'usuarios';
 
-function Sidebar({ activeTab, setActiveTab, profile, collapsed, setCollapsed, onLogout }: {
+function Sidebar({ activeTab, setActiveTab, profile, collapsed, setCollapsed }: {
   activeTab: TabId; setActiveTab: (t: TabId) => void;
   profile: UserProfile; collapsed: boolean; setCollapsed: (v: boolean) => void;
-  onLogout: () => void;
 }) {
   const items: { id: TabId; label: string; icon: any; roles: string[] }[] = [
     { id: 'portaria',        label: 'Portaria',           icon: Home,        roles: ['master','admin','viewer'] },
@@ -241,64 +341,48 @@ function Sidebar({ activeTab, setActiveTab, profile, collapsed, setCollapsed, on
   const visible = items.filter(i => i.roles.includes(profile.role));
 
   return (
-    <motion.aside animate={{ width: collapsed ? 72 : 256 }}
-      className="hidden md:flex flex-col bg-slate-900 text-white shrink-0 overflow-hidden relative">
-      {/* Collapse toggle */}
-      <button onClick={() => setCollapsed(!collapsed)}
-        className="absolute -right-3 top-7 z-20 w-6 h-6 rounded-full bg-slate-700 border border-slate-600 flex items-center justify-center text-slate-300 hover:bg-slate-600 transition-colors">
-        {collapsed ? <ChevronRight size={12} /> : <ChevronLeft size={12} />}
+    <motion.aside 
+      animate={{ width: collapsed ? 0 : 260 }}
+      transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+      className="relative h-full bg-slate-900 text-white shrink-0 z-20 group border-r border-white/5"
+    >
+      {/* Collapse toggle (The Bubble) */}
+      <button 
+        onClick={() => setCollapsed(!collapsed)}
+        className="absolute -right-3 top-10 z-40 w-7 h-7 rounded-full bg-white border-2 border-slate-900 flex items-center justify-center text-slate-900 hover:bg-blue-600 hover:text-white transition-all shadow-xl"
+      >
+        {collapsed ? <ChevronRight size={14} strokeWidth={3} /> : <ChevronLeft size={14} strokeWidth={3} />}
       </button>
 
-      {/* Logo */}
-      <div className={cn('px-4 py-5 border-b border-white/10 flex items-center gap-3', collapsed && 'justify-center px-0')}>
-        <div className="w-9 h-9 shrink-0 rounded-xl bg-blue-600 flex items-center justify-center shadow-lg">
-          <ShieldCheck size={20} className="text-white" />
-        </div>
-        {!collapsed && (
-          <div>
-            <p className="font-bold text-sm leading-tight">Gestão de</p>
-            <p className="font-bold text-sm leading-tight text-blue-400">Terceiros</p>
-          </div>
-        )}
-      </div>
+      <div className={cn("flex flex-col h-full overflow-hidden transition-opacity duration-300", collapsed ? "opacity-0" : "opacity-100")}>
+        {/* Nav */}
+        <nav className="flex-1 px-3 py-6 space-y-1.5 overflow-y-auto">
+          <p className="px-3 mb-4 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Navegação</p>
+          {visible.map(item => (
+            <button key={item.id} onClick={() => setActiveTab(item.id)}
+              className={cn(
+                'w-full flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-semibold transition-all',
+                activeTab === item.id
+                  ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20 active:scale-95'
+                  : 'text-slate-400 hover:bg-white/5 hover:text-slate-200'
+              )}>
+              <item.icon size={18} className={cn("transition-transform", activeTab === item.id ? "scale-110" : "group-hover:scale-110")} />
+              <span className="truncate">{item.label}</span>
+            </button>
+          ))}
+        </nav>
 
-      {/* Nav */}
-      <nav className="flex-1 px-2 py-4 space-y-1 overflow-y-auto">
-        {visible.map(item => (
-          <button key={item.id} onClick={() => setActiveTab(item.id)}
-            className={cn(
-              'w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all group',
-              activeTab === item.id
-                ? 'bg-blue-600 text-white shadow-md shadow-blue-500/30'
-                : 'text-slate-400 hover:bg-white/10 hover:text-white',
-              collapsed && 'justify-center px-0'
-            )}>
-            <item.icon size={20} className="shrink-0" />
-            {!collapsed && <span className="truncate">{item.label}</span>}
-          </button>
-        ))}
-      </nav>
-
-      {/* User */}
-      <div className={cn('px-3 py-4 border-t border-white/10', collapsed && 'flex justify-center')}>
-        {collapsed ? (
-          <button onClick={onLogout} className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/10">
-            <LogOut size={18} />
-          </button>
-        ) : (
+        {/* Footer info can stay if minimal */}
+        <div className="p-4 bg-black/20">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-slate-700 flex items-center justify-center text-sm font-bold text-white shrink-0">
-              {profile.displayName?.[0]?.toUpperCase()}
+            <div className="w-8 h-8 rounded-lg bg-slate-800 flex items-center justify-center text-[10px] font-black text-blue-400 border border-white/5">
+              {profile.displayName?.substring(0,2).toUpperCase()}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-semibold text-white truncate">{profile.displayName}</p>
-              <p className="text-xs text-slate-400 capitalize">{profile.role}{profile.companyName ? ` · ${profile.companyName}` : ''}</p>
+              <p className="text-[10px] font-black text-slate-300 truncate uppercase mt-0.5">{profile.displayName}</p>
             </div>
-            <button onClick={onLogout} className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors">
-              <LogOut size={16} />
-            </button>
           </div>
-        )}
+        </div>
       </div>
     </motion.aside>
   );
@@ -1263,25 +1347,41 @@ export default function App() {
   if (!profile) return <LoginPage onLogin={p => setProfile(p)} />;
 
   return (
-    <div className="flex h-screen bg-slate-50 overflow-hidden" style={{ fontFamily: "'Inter', system-ui, sans-serif" }}>
-      <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} profile={profile}
-        collapsed={sidebarCollapsed} setCollapsed={setSidebarCollapsed} onLogout={handleLogout} />
+    <div className="h-screen flex flex-col overflow-hidden bg-slate-50" style={{ fontFamily: "'Inter', system-ui, sans-serif" }}>
+      <Header profile={profile} onLogout={handleLogout} />
+      
+      <div className="flex flex-1 overflow-hidden relative">
+        <Sidebar 
+          activeTab={activeTab} 
+          setActiveTab={setActiveTab} 
+          profile={profile} 
+          collapsed={sidebarCollapsed} 
+          setCollapsed={setSidebarCollapsed} 
+        />
 
-      <main className="flex-1 overflow-y-auto">
-        <div className="p-6 md:p-8">
-          <AnimatePresence mode="wait">
-            <motion.div key={activeTab} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.18 }}>
-              {activeTab === 'portaria'         && <PortariaView profile={profile} />}
-              {activeTab === 'pessoas'          && <PessoasView profile={profile} />}
-              {activeTab === 'empresas_terceiro' && <EmpresasTerceiroView profile={profile} />}
-              {activeTab === 'treinamentos'     && <TreinamentosView profile={profile} />}
-              {activeTab === 'atividades'       && <AtividadesView profile={profile} />}
-              {activeTab === 'companies'        && profile.role === 'master' && <CompaniesView />}
-              {activeTab === 'usuarios'         && <UsuariosView profile={profile} />}
-            </motion.div>
-          </AnimatePresence>
-        </div>
-      </main>
+        <main className="flex-1 overflow-y-auto relative z-10">
+          <div className="max-w-7xl mx-auto p-4 md:p-8">
+            <AnimatePresence mode="wait">
+              <motion.div 
+                key={activeTab} 
+                initial={{ opacity: 0, y: 10 }} 
+                animate={{ opacity: 1, y: 0 }} 
+                exit={{ opacity: 0, y: -10 }} 
+                transition={{ duration: 0.15 }}
+              >
+                {activeTab === 'portaria'         && <PortariaView profile={profile} />}
+                {activeTab === 'pessoas'          && <PessoasView profile={profile} />}
+                {activeTab === 'empresas_terceiro' && <EmpresasTerceiroView profile={profile} />}
+                {activeTab === 'treinamentos'     && <TreinamentosView profile={profile} />}
+                {activeTab === 'atividades'       && <AtividadesView profile={profile} />}
+                {activeTab === 'companies'        && profile.role === 'master' && <CompaniesView />}
+                {activeTab === 'usuarios'         && <UsuariosView profile={profile} />}
+              </motion.div>
+            </AnimatePresence>
+          </div>
+        </main>
+      </div>
     </div>
   );
 }
+
