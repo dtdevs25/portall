@@ -216,11 +216,11 @@ function LoginPage({ onLogin }: { onLogin: (user: UserProfile) => void }) {
       >
         <div className="bg-white/80 backdrop-blur-2xl rounded-[2.5rem] shadow-2xl p-10 border border-white">
           <div className="text-center mb-10">
-            <div className="w-20 h-20 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-xl shadow-blue-500/20">
-              <ShieldCheck size={40} className="text-white" />
+            <div className="flex items-center justify-center mb-6">
+              <img src="/LogoCompleto.png" alt="PortALL" className="h-20 w-auto object-contain" />
             </div>
-            <h1 className="text-3xl font-black text-slate-900 tracking-tight">RondaDigital</h1>
-            <p className="text-xs font-bold text-slate-400 mt-1 uppercase tracking-widest">Painel Administrativo</p>
+            <h1 className="text-3xl font-black text-slate-900 tracking-tight">PortALL</h1>
+            <p className="text-xs font-bold text-slate-400 mt-1 uppercase tracking-widest">Gestão de Acessos</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-5">
@@ -287,13 +287,11 @@ function Header({ profile, onLogout }: { profile: UserProfile; onLogout: () => v
   return (
     <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-6 shrink-0 z-30 shadow-sm">
       <div className="flex items-center gap-3">
-        <div className="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center shadow-lg shadow-blue-500/20">
-          <ShieldCheck size={20} className="text-white" />
-        </div>
-        <div>
-          <p className="font-black text-sm leading-tight text-slate-900 tracking-tight lowercase">Ronda<span className="text-blue-600 uppercase">Digital</span></p>
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{profile.companyName || 'Industrial'}</p>
-        </div>
+        <img src="/LogoCompleto.png" alt="PortALL Logo" className="h-9 w-auto object-contain" />
+        <div className="h-6 w-[1px] bg-slate-200 mx-1 hidden sm:block" />
+        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest hidden sm:block">
+          {profile.companyName || 'Gestão de Acesso'}
+        </p>
       </div>
       
       <div className="flex items-center gap-3">
