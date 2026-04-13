@@ -197,7 +197,7 @@ function LoginPage({ onLogin }: { onLogin: (user: UserProfile) => void }) {
   return (
     <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden bg-gradient-to-br from-blue-50 to-indigo-100">
       {/* Background Decor */}
-      <div className="absolute inset-0 bg-grid-slate-900 opacity-100" />
+      <div className="absolute inset-0 bg-grid-slate-900 opacity-30" />
       
       {/* Background glows */}
       <motion.div 
@@ -216,11 +216,9 @@ function LoginPage({ onLogin }: { onLogin: (user: UserProfile) => void }) {
       >
         <div className="bg-white/80 backdrop-blur-2xl rounded-[2.5rem] shadow-2xl p-10 border border-white">
           <div className="text-center mb-10">
-            <div className="flex items-center justify-center mb-6">
-              <img src="/LogoCompleto.png" alt="PortALL" className="h-20 w-auto object-contain" />
+            <div className="flex items-center justify-center">
+              <img src="/LogoCompleto.png" alt="PortALL" className="h-28 w-auto object-contain" />
             </div>
-            <h1 className="text-3xl font-black text-slate-900 tracking-tight">PortALL</h1>
-            <p className="text-xs font-bold text-slate-400 mt-1 uppercase tracking-widest">Gestão de Acessos</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-5">
@@ -287,11 +285,7 @@ function Header({ profile, onLogout }: { profile: UserProfile; onLogout: () => v
   return (
     <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-6 shrink-0 z-30 shadow-sm">
       <div className="flex items-center gap-3">
-        <img src="/LogoCompleto.png" alt="PortALL Logo" className="h-9 w-auto object-contain" />
-        <div className="h-6 w-[1px] bg-slate-200 mx-1 hidden sm:block" />
-        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest hidden sm:block">
-          {profile.companyName || 'Gestão de Acesso'}
-        </p>
+        <img src="/LogoCompleto.png" alt="PortALL Logo" className="h-10 w-auto object-contain" />
       </div>
       
       <div className="flex items-center gap-3">
@@ -929,25 +923,51 @@ function SimpleListView<T extends { id: string; name?: string; nome?: string }>(
 // ─── Empresas Terceiro View ──────────────────────────────────────────────────
 
 function EmpresasTerceiroView({ profile }: { profile: UserProfile }) {
+  const [companies, setCompanies] = useState<Company[]>([]);
+  useEffect(() => { if (profile.role === 'master') api.get<Company[]>('/companies').then(setCompanies); }, []);
+
+  const maskCNPJ = (v: string) => {
+    v = v.replace(/\D/g, '');
+    if (v.length > 14) v = v.slice(0, 14);
+    if (v.length > 12) return v.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2}).*/, '$1.$2.$3/$4-$5');
+    if (v.length > 8) return v.replace(/^(\d{2})(\d{3})(\d{3})(\d{4}).*/, '$1.$2.$3/$4');
+    if (v.length > 5) return v.replace(/^(\d{2})(\d{3})(\d{3}).*/, '$1.$2.$3');
+    if (v.length > 2) return v.replace(/^(\d{2})(\d{3}).*/, '$1.$2');
+    return v;
+  };
+
   const EmpresaForm = ({ item, onSave, onClose }: { item: EmpresaTerceiro | null; onSave: () => void; onClose: () => void }) => {
     const [name, setName] = useState(item?.name || '');
     const [cnpj, setCnpj] = useState(item?.cnpj || '');
+    const [selectedCompanyId, setSelectedCompanyId] = useState(item?.companyId || '');
     const [saving, setSaving] = useState(false);
+
     const handleSubmit = async (e: React.FormEvent) => {
       e.preventDefault(); setSaving(true);
       try {
-        if (item) await api.put(`/empresas-terceiro/${item.id}`, { name, cnpj });
-        else await api.post('/empresas-terceiro', { name, cnpj });
+        const payload = { 
+          name, 
+          cnpj: cnpj.replace(/\D/g, ''), 
+          companyId: profile.role === 'master' ? selectedCompanyId : profile.companyId 
+        };
+        if (item) await api.put(`/empresas-terceiro/${item.id}`, payload);
+        else await api.post('/empresas-terceiro', payload);
         onSave();
       } catch (err: any) { alert(err.error || 'Erro.'); } finally { setSaving(false); }
     };
     return (
       <form onSubmit={handleSubmit} className="space-y-4">
-        <Input label="Nome da Empresa" value={name} onChange={setName} required />
-        <Input label="CNPJ" value={cnpj} onChange={setCnpj} placeholder="00.000.000/0000-00" />
+        {profile.role === 'master' && (
+          <Select label="Companhia Mandante" value={selectedCompanyId} onChange={setSelectedCompanyId} required>
+            <option value="">— Selecione a Empresa —</option>
+            {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </Select>
+        )}
+        <Input label="Nome da Empresa de Origem" value={name} onChange={setName} required placeholder="Ex: CTDI, Logística Express..." />
+        <Input label="CNPJ" value={cnpj} onChange={v => setCnpj(maskCNPJ(v))} placeholder="00.000.000/0000-00" />
         <div className="flex justify-end gap-2 pt-2">
           <Button variant="ghost" onClick={onClose}>Cancelar</Button>
-          <Button type="submit" disabled={saving}>{saving ? 'Salvando...' : 'Salvar'}</Button>
+          <Button type="submit" disabled={saving}>{saving ? 'Salvando...' : 'Salvar Empresa'}</Button>
         </div>
       </form>
     );
