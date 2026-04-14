@@ -328,7 +328,7 @@ function Sidebar({ activeTab, setActiveTab, profile, collapsed, setCollapsed }: 
     { id: 'empresas_terceiro',label:'Provedores',           icon: Building2,   roles: ['master','admin'],          category: 'CADASTROS' },
     { id: 'treinamentos',    label: 'Treinamentos',         icon: BookOpen,   roles: ['master','admin'],          category: 'CADASTROS' },
     { id: 'atividades',      label: 'Profissões / Funções', icon: Briefcase,   roles: ['master','admin'],          category: 'CADASTROS' },
-    { id: 'companies',       label: 'Empresas',             icon: ShieldCheck, roles: ['master'],                category: 'CONFIGURAÇÕES' },
+    { id: 'companies',       label: 'Empresas',             icon: ShieldCheck, roles: ['master', 'admin'],          category: 'CONFIGURAÇÕES' },
     { id: 'usuarios',        label: 'Usuários do Sistema',  icon: UserCog,     roles: ['master','admin'],          category: 'CONFIGURAÇÕES' },
   ];
 
@@ -649,6 +649,7 @@ type PessoaForm = {
   notebookAutorizado: boolean; liberadoAte: string; descricaoAtividade: string;
   atividadeId: string; asoDataRealizacao: string; epiObrigatorio: boolean; epiDescricao: string;
   treinamentos: { treinamentoId: string; dataRealizacao: string }[];
+  companyId: string;
 };
 
 const emptyPessoaForm = (): PessoaForm => ({
@@ -657,6 +658,7 @@ const emptyPessoaForm = (): PessoaForm => ({
   notebookAutorizado: false, liberadoAte: '', descricaoAtividade: '',
   atividadeId: '', asoDataRealizacao: '', epiObrigatorio: false, epiDescricao: '',
   treinamentos: [],
+  companyId: '',
 });
 
 function PessoasView({ profile }: { profile: UserProfile }) {
@@ -664,6 +666,7 @@ function PessoasView({ profile }: { profile: UserProfile }) {
   const [empresasTerceiro, setEmpresasTerceiro] = useState<EmpresaTerceiro[]>([]);
   const [atividades, setAtividades] = useState<TipoAtividade[]>([]);
   const [treiTipos, setTreiTipos] = useState<TipoTreinamento[]>([]);
+  const [companies, setCompanies] = useState<Company[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [editTarget, setEditTarget] = useState<Pessoa | null>(null);
   const [form, setForm] = useState<PessoaForm>(emptyPessoaForm());
@@ -675,16 +678,18 @@ function PessoasView({ profile }: { profile: UserProfile }) {
 
   const fetchAll = async () => {
     try {
-      const [p, e, a, t] = await Promise.all([
+      const [p, e, a, t, c] = await Promise.all([
         api.get<Pessoa[]>('/pessoas'),
         api.get<EmpresaTerceiro[]>('/empresas-terceiro'),
         api.get<TipoAtividade[]>('/treinamentos/atividades'),
         api.get<TipoTreinamento[]>('/treinamentos/tipos'),
+        api.get<Company[]>('/companies'),
       ]);
       setPessoas(p || []);
       setEmpresasTerceiro(e || []);
       setAtividades(a || []);
       setTreiTipos(t || []);
+      setCompanies(c || []);
     } catch {}
   };
 
@@ -809,6 +814,12 @@ function PessoasView({ profile }: { profile: UserProfile }) {
                   {empresasTerceiro.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
                 </Select>
                 <Input label="Responsável Interno" value={form.responsavelInterno} onChange={v => setForm(f => ({ ...f, responsavelInterno: v }))} required placeholder="Nome do acompanhante" />
+                {(profile.role === 'master' || profile.role === 'admin') && (
+                  <Select label="Empresa de Acesso (Unidade)" value={form.companyId} onChange={v => setForm(f => ({ ...f, companyId: v }))} required>
+                    <option value="">— Selecione —</option>
+                    {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </Select>
+                )}
                 <Input label="Liberado Até" type="date" value={form.liberadoAte} onChange={v => setForm(f => ({ ...f, liberadoAte: v }))} />
                 <Input label="Descrição da Atividade / Visita" value={form.descricaoAtividade} onChange={v => setForm(f => ({ ...f, descricaoAtividade: v }))} placeholder="Descreva o motivo do acesso" />
               </div>
@@ -946,7 +957,11 @@ function SimpleListView<T extends { id: string; name?: string; nome?: string }>(
 
 function EmpresasTerceiroView({ profile }: { profile: UserProfile }) {
   const [companies, setCompanies] = useState<Company[]>([]);
-  useEffect(() => { if (profile.role === 'master') api.get<Company[]>('/companies').then(setCompanies); }, []);
+  useEffect(() => { 
+    if (profile.role === 'master' || profile.role === 'admin') {
+      api.get<Company[]>('/companies').then(setCompanies); 
+    }
+  }, [profile.role]);
 
   const maskCNPJ = (v: string) => {
     v = v.replace(/\D/g, '');
@@ -970,7 +985,7 @@ function EmpresasTerceiroView({ profile }: { profile: UserProfile }) {
         const payload = { 
           name, 
           cnpj: cnpj.replace(/\D/g, ''), 
-          companyId: profile.role === 'master' ? selectedCompanyId : profile.companyId 
+          companyId: (profile.role === 'master' || profile.role === 'admin') ? selectedCompanyId : profile.companyId 
         };
         if (item) await api.put(`/empresas-terceiro/${item.id}`, payload);
         else await api.post('/empresas-terceiro', payload);
@@ -979,7 +994,7 @@ function EmpresasTerceiroView({ profile }: { profile: UserProfile }) {
     };
     return (
       <form onSubmit={handleSubmit} className="space-y-4">
-        {profile.role === 'master' && (
+        {(profile.role === 'master' || profile.role === 'admin') && (
           <Select label="Companhia Mandante" value={selectedCompanyId} onChange={setSelectedCompanyId} required>
             <option value="">— Selecione a Empresa —</option>
             {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -1012,15 +1027,25 @@ function EmpresasTerceiroView({ profile }: { profile: UserProfile }) {
 function TreinamentosView({ profile }: { profile: UserProfile }) {
   const [items, setItems] = useState<TipoTreinamento[]>([]);
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ nome: '', codigo: '', validadeMeses: '12', escopo: 'personalizado' });
+  const [form, setForm] = useState({ nome: '', codigo: '', validadeMeses: '12', escopo: 'personalizado', companyId: '' });
+  const [companies, setCompanies] = useState<Company[]>([]);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => { fetchAll(); }, []);
-  const fetchAll = async () => { try { setItems(await api.get<TipoTreinamento[]>('/treinamentos/tipos')); } catch {} };
+  const fetchAll = async () => { 
+    try {
+      const [t, c] = await Promise.all([api.get<TipoTreinamento[]>('/treinamentos/tipos'), api.get<Company[]>('/companies')]);
+      setItems(t || []); setCompanies(c || []);
+    } catch {} 
+  };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault(); setSaving(true);
-    try { await api.post('/treinamentos/tipos', form); fetchAll(); setShowForm(false); setForm({ nome: '', codigo: '', validadeMeses: '12', escopo: 'personalizado' }); }
+    try { 
+      await api.post('/treinamentos/tipos', form); 
+      fetchAll(); setShowForm(false); 
+      setForm({ nome: '', codigo: '', validadeMeses: '12', escopo: 'personalizado', companyId: '' }); 
+    }
     catch (err: any) { alert(err.error || 'Erro.'); } finally { setSaving(false); }
   };
 
@@ -1072,6 +1097,12 @@ function TreinamentosView({ profile }: { profile: UserProfile }) {
                   <option value="global">Global (todas as empresas)</option>
                 </Select>
               )}
+              {(profile.role === 'master' || (profile.role === 'admin' && form.escopo === 'personalizado')) && (profile.role === 'admin' || form.escopo === 'personalizado') && (
+                <Select label="Empresa Responsável" value={form.companyId} onChange={v => setForm(f => ({ ...f, companyId: v }))} required>
+                  <option value="">— Selecione —</option>
+                  {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </Select>
+              )}
               <div className="flex justify-end gap-2 pt-2">
                 <Button variant="ghost" onClick={() => setShowForm(false)}>Cancelar</Button>
                 <Button type="submit" disabled={saving}>{saving ? 'Salvando...' : 'Salvar'}</Button>
@@ -1089,15 +1120,20 @@ function TreinamentosView({ profile }: { profile: UserProfile }) {
 function AtividadesView({ profile }: { profile: UserProfile }) {
   const [items, setItems] = useState<TipoAtividade[]>([]);
   const [treiTipos, setTreiTipos] = useState<TipoTreinamento[]>([]);
+  const [companies, setCompanies] = useState<Company[]>([]);
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ nome: '', treinamentosObrigatorios: [] as string[] });
+  const [form, setForm] = useState({ nome: '', companyId: '', treinamentosObrigatorios: [] as string[] });
   const [saving, setSaving] = useState(false);
 
   useEffect(() => { fetchAll(); }, []);
   const fetchAll = async () => {
     try {
-      const [a, t] = await Promise.all([api.get<TipoAtividade[]>('/treinamentos/atividades'), api.get<TipoTreinamento[]>('/treinamentos/tipos')]);
-      setItems(a || []); setTreiTipos(t || []);
+      const [a, t, c] = await Promise.all([
+        api.get<TipoAtividade[]>('/treinamentos/atividades'), 
+        api.get<TipoTreinamento[]>('/treinamentos/tipos'),
+        api.get<Company[]>('/companies')
+      ]);
+      setItems(a || []); setTreiTipos(t || []); setCompanies(c || []);
     } catch {}
   };
 
@@ -1107,7 +1143,11 @@ function AtividadesView({ profile }: { profile: UserProfile }) {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault(); setSaving(true);
-    try { await api.post('/treinamentos/atividades', form); fetchAll(); setShowForm(false); setForm({ nome: '', treinamentosObrigatorios: [] }); }
+    try { 
+      await api.post('/treinamentos/atividades', form); 
+      fetchAll(); setShowForm(false); 
+      setForm({ nome: '', companyId: '', treinamentosObrigatorios: [] }); 
+    }
     catch (err: any) { alert(err.error || 'Erro.'); } finally { setSaving(false); }
   };
 
@@ -1141,6 +1181,12 @@ function AtividadesView({ profile }: { profile: UserProfile }) {
           <Modal title="Nova Atividade" onClose={() => setShowForm(false)}>
             <form onSubmit={handleSave} className="space-y-4">
               <Input label="Nome da Atividade" value={form.nome} onChange={v => setForm(f => ({ ...f, nome: v }))} required placeholder="Ex: Trabalho em Altura" />
+              {(profile.role === 'master' || profile.role === 'admin') && (
+                <Select label="Empresa" value={form.companyId} onChange={v => setForm(f => ({ ...f, companyId: v }))} required>
+                  <option value="">— Selecione —</option>
+                  {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </Select>
+              )}
               <div>
                 <label className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Treinamentos Obrigatórios</label>
                 <div className="mt-2 space-y-2 max-h-60 overflow-y-auto">
@@ -1537,7 +1583,12 @@ function UsuariosView({ profile }: { profile: UserProfile }) {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault(); setSaving(true);
     try {
-      await api.post('/users', { ...form, companyId: profile.role === 'admin' ? profile.companyId : form.companyId });
+      const payload = { ...form };
+      // Se for admin, usa o companyId selecionado, se não tiver usa o do perfil como fallback
+      if (profile.role === 'admin') {
+        payload.companyId = form.companyId || profile.companyId;
+      }
+      await api.post('/users', payload);
       fetchAll(); setShowForm(false); setForm({ email: '', displayName: '', role: 'viewer', companyId: '' });
     } catch (err: any) { alert(err.error || 'Erro.'); } finally { setSaving(false); }
   };
@@ -1616,7 +1667,7 @@ function UsuariosView({ profile }: { profile: UserProfile }) {
                 <option value="admin">Administrador</option>
                 {profile.role === 'master' && <option value="master">Master</option>}
               </Select>
-              {profile.role === 'master' && form.role !== 'master' && (
+              {(profile.role === 'master' || (profile.role === 'admin' && form.role !== 'master')) && (
                 <Select label="Empresa" value={form.companyId} onChange={v => setForm(f => ({ ...f, companyId: v }))} required>
                   <option value="">— Selecione —</option>
                   {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}

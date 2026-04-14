@@ -16,11 +16,15 @@ router.get('/tipos', async (req: AuthRequest, res: Response) => {
        // Master vê globais e personalizados
        tipos = await query(`SELECT * FROM tipos_treinamento ORDER BY nome ASC`);
     } else {
-       // Admin/Viewer vê globais e os da sua companhia
+       // Admin/Viewer vê globais e os das suas companhias vinculadas
        tipos = await query(
          `SELECT * FROM tipos_treinamento 
-          WHERE escopo = 'global' OR company_id = $1 
-          ORDER BY nome ASC`, [req.user?.companyId]
+          WHERE escopo = 'global' OR company_id IN (
+            SELECT company_id FROM user_companies WHERE user_id = $1
+            UNION
+            SELECT id FROM companies WHERE parent_id IN (SELECT company_id FROM user_companies WHERE user_id = $1)
+          )
+          ORDER BY nome ASC`, [req.user?.userId]
        );
     }
     
@@ -61,9 +65,26 @@ router.post('/tipos', async (req: AuthRequest, res: Response) => {
 
     if (req.user?.role === 'admin') {
       escopo = 'personalizado';
-      companyId = req.user.companyId;
+      // Admin deve informar qual empresa o treinamento pertence (dentre as que ele gere)
+      if (!companyId) {
+        res.status(400).json({ error: 'ID da companhia mandante é obrigatório.' });
+        return;
+      }
+      const hasAccess = await queryOne(
+        `SELECT id FROM companies 
+         WHERE id = $1 AND (
+           id IN (SELECT company_id FROM user_companies WHERE user_id = $2)
+           OR 
+           parent_id IN (SELECT company_id FROM user_companies WHERE user_id = $2)
+         )`,
+        [companyId, req.user.userId]
+      );
+      if (!hasAccess) {
+        res.status(403).json({ error: 'Você não tem permissão para cadastrar treinamentos nesta unidade.' });
+        return;
+      }
     } else if (escopo === 'global') {
-      companyId = null; // Globais não têm companyId
+      companyId = null; 
     }
 
     const doc = await queryOne(
@@ -90,8 +111,14 @@ router.get('/atividades', async (req: AuthRequest, res: Response) => {
       atividades = await query(`SELECT * FROM tipos_atividade ORDER BY nome ASC`);
     } else {
       atividades = await query(
-        `SELECT * FROM tipos_atividade WHERE company_id = $1 ORDER BY nome ASC`,
-        [req.user?.companyId]
+        `SELECT * FROM tipos_atividade 
+         WHERE company_id IN (
+           SELECT company_id FROM user_companies WHERE user_id = $1
+           UNION
+           SELECT id FROM companies WHERE parent_id IN (SELECT company_id FROM user_companies WHERE user_id = $1)
+         )
+         ORDER BY nome ASC`,
+        [req.user?.userId]
       );
     }
     
@@ -130,20 +157,44 @@ router.post('/atividades', async (req: AuthRequest, res: Response) => {
   try {
     let { nome, companyId, treinamentosObrigatorios } = req.body;
     
-    if (!nome) {
-      res.status(400).json({ error: 'Nome é obrigatório.' });
+    if (!nome || !companyId) {
+      res.status(400).json({ error: 'Nome e Empresa são obrigatórios.' });
       return;
     }
     
-    let targetCompany = companyId;
     if (req.user?.role === 'admin') {
-      targetCompany = req.user.companyId;
+      const hasAccess = await queryOne(
+        `SELECT id FROM companies 
+         WHERE id = $1 AND (
+           id IN (SELECT company_id FROM user_companies WHERE user_id = $2)
+           OR 
+           parent_id IN (SELECT company_id FROM user_companies WHERE user_id = $2)
+         )`,
+        [companyId, req.user.userId]
+      );
+      if (!hasAccess) {
+        res.status(403).json({ error: 'Sem permissão para criar atividades nesta unidade.' });
+        return;
+      }
     }
 
     const doc = await queryOne<{ id: string }>(
       `INSERT INTO tipos_atividade (company_id, nome) VALUES ($1, $2) RETURNING id`,
-      [targetCompany, nome.trim()]
+      [companyId, nome.trim()]
     );
+    
+    if (doc && Array.isArray(treinamentosObrigatorios) && treinamentosObrigatorios.length > 0) {
+      for (const tId of treinamentosObrigatorios) {
+         await query('INSERT INTO atividade_treinamentos (atividade_id, treinamento_id) VALUES ($1, $2)', [doc.id, tId]);
+      }
+    }
+
+    res.status(201).json({ id: doc?.id });
+  } catch (err) {
+    console.error('POST atividades error:', err);
+    res.status(500).json({ error: 'Erro ao criar atividade.' });
+  }
+});
     
     if (doc && Array.isArray(treinamentosObrigatorios) && treinamentosObrigatorios.length > 0) {
       for (const tId of treinamentosObrigatorios) {

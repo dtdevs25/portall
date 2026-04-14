@@ -30,12 +30,13 @@ function calculateStatus(liberadoAte: Date | null, asoVencimento: Date | null, t
 
 // ============================================================
 // GET /api/pessoas - Lista visitantes e prestadores
+// Master vê todas. Admin vê de todas as suas unidades vinculadas.
 // ============================================================
 router.get('/', async (req: AuthRequest, res: Response) => {
   try {
-    let pessoas;
+    let pessoasData;
     if (req.user?.role === 'master') {
-      pessoas = await query(
+      pessoasData = await query(
         `SELECT p.*, e.name as empresa_origem_nome, t.nome as atividade_nome 
          FROM pessoas p
          LEFT JOIN empresas_terceiro e ON p.empresa_origem_id = e.id
@@ -43,23 +44,27 @@ router.get('/', async (req: AuthRequest, res: Response) => {
          ORDER BY p.nome_completo ASC`
       );
     } else {
-      if (!req.user?.companyId) {
-        res.json([]);
-        return;
-      }
-      pessoas = await query(
+      pessoasData = await query(
         `SELECT p.*, e.name as empresa_origem_nome, t.nome as atividade_nome 
          FROM pessoas p
          LEFT JOIN empresas_terceiro e ON p.empresa_origem_id = e.id
          LEFT JOIN tipos_atividade t ON p.atividade_id = t.id
-         WHERE p.company_id = $1
+         WHERE p.company_id IN (
+           -- Unidades vinculadas diretamente
+           SELECT company_id FROM user_companies WHERE user_id = $1
+           UNION
+           -- Filiais das unidades vinculadas
+           SELECT id FROM companies WHERE parent_id IN (
+             SELECT company_id FROM user_companies WHERE user_id = $1
+           )
+         )
          ORDER BY p.nome_completo ASC`,
-        [req.user.companyId]
+        [req.user!.userId]
       );
     }
 
     // Busca os treinamentos atrelados para calcular os vencimentos reais
-    const pessoasIds = pessoas.map((p: any) => p.id);
+    const pessoasIds = pessoasData.map((p: any) => p.id);
     let treinamentosPorPessoa: Record<string, any[]> = {};
 
     if (pessoasIds.length > 0) {
@@ -83,7 +88,7 @@ router.get('/', async (req: AuthRequest, res: Response) => {
       });
     }
 
-    const payload = pessoas.map((p: any) => {
+    const payload = pessoasData.map((p: any) => {
       // 1 ano para ASO via genérico, se o escopo for esse, senão usa lógica custom
       let asoVencimento = null;
       if (p.aso_data_realizacao) {
@@ -149,13 +154,25 @@ router.post('/', async (req: AuthRequest, res: Response) => {
       treinamentos // ARRAY de treinamentos [{ treinamentoId, dataRealizacao }]
     } = req.body;
 
-    let targetCompany = companyId;
-    if (req.user?.role === 'admin') {
-      targetCompany = req.user.companyId;
+    if (!companyId || !nomeCompleto || !documento || !responsavelInterno) {
+      res.status(400).json({ error: 'Dados obrigatórios ausentes.' }); return;
     }
 
-    if (!targetCompany || !nomeCompleto || !documento || !responsavelInterno) {
-      res.status(400).json({ error: 'Dados obrigatórios ausentes.' }); return;
+    // Validação de acesso para Admin
+    if (req.user?.role === 'admin') {
+      const hasAccess = await queryOne(
+        `SELECT id FROM companies 
+         WHERE id = $1 AND (
+           id IN (SELECT company_id FROM user_companies WHERE user_id = $2)
+           OR 
+           parent_id IN (SELECT company_id FROM user_companies WHERE user_id = $2)
+         )`,
+        [companyId, req.user.userId]
+      );
+      if (!hasAccess) {
+        res.status(403).json({ error: 'Você não tem permissão para cadastrar pessoas nesta unidade.' });
+        return;
+      }
     }
 
     // Insere a pessoa
@@ -163,11 +180,11 @@ router.post('/', async (req: AuthRequest, res: Response) => {
       `INSERT INTO pessoas (
         company_id, tipo_acesso, foto, nome_completo, documento, empresa_origem_id, responsavel_interno,
         celular_autorizado, notebook_autorizado, liberado_ate, descricao_atividade,
-        atividade_id, aso_data_realizacao, epi_obrigatorio, epi_descricao, created_by
+        atividade_id, as_data_realizacao, epi_obrigatorio, epi_descricao, created_by
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
       RETURNING id`,
       [
-        targetCompany, tipoAcesso, foto, nomeCompleto, documento, empresaOrigemId || null, responsavelInterno,
+        companyId, tipoAcesso, foto, nomeCompleto, documento, empresaOrigemId || null, responsavelInterno,
         celularAutorizado, notebookAutorizado, liberadoAte || null, descricaoAtividade,
         tipoAcesso === 'prestador' ? (atividadeId || null) : null,
         tipoAcesso === 'prestador' ? (asoDataRealizacao || null) : null,

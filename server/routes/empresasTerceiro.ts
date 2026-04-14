@@ -8,39 +8,36 @@ router.use(requireAuth);
 
 // ============================================================
 // GET /api/empresas-terceiro
+// Master vê todas. Admin vê de todas as suas unidades vinculadas.
 // ============================================================
 router.get('/', async (req: AuthRequest, res: Response) => {
   try {
     let empresas;
     if (req.user?.role === 'master') {
       empresas = await query<{
-        id: string;
-        company_id: string;
-        name: string;
-        cnpj: string;
-        created_at: string;
+        id: string; company_id: string; name: string; cnpj: string; created_at: string;
       }>(
         `SELECT id, company_id, name, cnpj, created_at 
          FROM empresas_terceiro 
          ORDER BY name ASC`
       );
     } else {
-      if (!req.user?.companyId) {
-        res.json([]);
-        return;
-      }
       empresas = await query<{
-        id: string;
-        company_id: string;
-        name: string;
-        cnpj: string;
-        created_at: string;
+        id: string; company_id: string; name: string; cnpj: string; created_at: string;
       }>(
         `SELECT id, company_id, name, cnpj, created_at 
          FROM empresas_terceiro 
-         WHERE company_id = $1
+         WHERE company_id IN (
+           -- Unidades vinculadas diretamente
+           SELECT company_id FROM user_companies WHERE user_id = $1
+           UNION
+           -- Filiais das unidades vinculadas
+           SELECT id FROM companies WHERE parent_id IN (
+             SELECT company_id FROM user_companies WHERE user_id = $1
+           )
+         )
          ORDER BY name ASC`,
-        [req.user.companyId]
+        [req.user!.userId]
       );
     }
     
@@ -68,6 +65,7 @@ router.use((req: AuthRequest, res: Response, next) => {
 
 // ============================================================
 // POST /api/empresas-terceiro
+// Master cria em qualquer uma. Admin cria apenas nas suas vinculadas/filiais.
 // ============================================================
 router.post('/', async (req: AuthRequest, res: Response) => {
   try {
@@ -78,21 +76,33 @@ router.post('/', async (req: AuthRequest, res: Response) => {
       return;
     }
 
-    let targetCompanyId = companyId;
-    if (req.user?.role === 'admin') {
-      targetCompanyId = req.user.companyId;
-    }
-
-    if (!targetCompanyId) {
+    if (!companyId) {
       res.status(400).json({ error: 'ID da companhia mandante é obrigatório.' });
       return;
+    }
+
+    // Validação de acesso para Admin
+    if (req.user?.role === 'admin') {
+      const hasAccess = await queryOne(
+        `SELECT id FROM companies 
+         WHERE id = $1 AND (
+           id IN (SELECT company_id FROM user_companies WHERE user_id = $2)
+           OR 
+           parent_id IN (SELECT company_id FROM user_companies WHERE user_id = $2)
+         )`,
+        [companyId, req.user.userId]
+      );
+      if (!hasAccess) {
+        res.status(403).json({ error: 'Você não tem permissão para cadastrar provedores nesta unidade.' });
+        return;
+      }
     }
 
     const doc = await queryOne<{ id: string; name: string }>(
       `INSERT INTO empresas_terceiro (company_id, name, cnpj)
        VALUES ($1, $2, $3)
        RETURNING id, company_id, name, cnpj, created_at`,
-      [targetCompanyId, name.trim(), cnpj ? cnpj.trim() : null]
+      [companyId, name.trim(), cnpj ? cnpj.trim() : null]
     );
 
     res.status(201).json(doc);
@@ -115,9 +125,17 @@ router.put('/:id', async (req: AuthRequest, res: Response) => {
     const { name, cnpj } = req.body;
 
     if (req.user?.role === 'admin') {
-       const authCheck = await queryOne('SELECT id FROM empresas_terceiro WHERE id = $1 AND company_id = $2', [id, req.user.companyId]);
+       const authCheck = await queryOne(
+         `SELECT id FROM empresas_terceiro 
+          WHERE id = $1 AND company_id IN (
+            SELECT company_id FROM user_companies WHERE user_id = $2
+            UNION
+            SELECT id FROM companies WHERE parent_id IN (SELECT company_id FROM user_companies WHERE user_id = $2)
+          )`,
+         [id, req.user.userId]
+       );
        if (!authCheck) {
-         res.status(403).json({ error: 'Sem permissão.' }); return;
+         res.status(403).json({ error: 'Sem permissão para editar provedores desta unidade.' }); return;
        }
     }
 
@@ -127,6 +145,11 @@ router.put('/:id', async (req: AuthRequest, res: Response) => {
        RETURNING id, company_id, name, cnpj, created_at`,
       [name?.trim(), cnpj?.trim() || null, id]
     );
+
+    if (!doc) {
+      res.status(404).json({ error: 'Empresa não encontrada.' });
+      return;
+    }
 
     res.json(doc);
   } catch (err: any) {
@@ -143,13 +166,21 @@ router.delete('/:id', async (req: AuthRequest, res: Response) => {
     const { id } = req.params;
 
     if (req.user?.role === 'admin') {
-      const authCheck = await queryOne('SELECT id FROM empresas_terceiro WHERE id = $1 AND company_id = $2', [id, req.user.companyId]);
+      const authCheck = await queryOne(
+        `SELECT id FROM empresas_terceiro 
+         WHERE id = $1 AND company_id IN (
+           SELECT company_id FROM user_companies WHERE user_id = $2
+           UNION
+           SELECT id FROM companies WHERE parent_id IN (SELECT company_id FROM user_companies WHERE user_id = $2)
+         )`,
+        [id, req.user.userId]
+      );
       if (!authCheck) {
-        res.status(403).json({ error: 'Sem permissão.' }); return;
+        res.status(403).json({ error: 'Sem permissão para remover provedores desta unidade.' }); return;
       }
     }
 
-    await queryOne('DELETE FROM empresas_terceiro WHERE id = $1 RETURNING id', [id]);
+    await query('DELETE FROM empresas_terceiro WHERE id = $1', [id]);
     res.json({ message: 'Excluído com sucesso.' });
   } catch (err) {
     console.error('DELETE error:', err);
