@@ -43,8 +43,8 @@ export async function initDB(): Promise<void> {
     );
     
     if (parseInt(rows[0].count) === 0) {
-      const adminEmail = process.env.ADMIN_EMAIL || 'admin@ehspro.com.br';
-      const adminPassword = process.env.ADMIN_PASSWORD || 'RondaAdmin@2025!';
+      const adminEmail = process.env.ADMIN_EMAIL || 'admin@portall.ehspro.com.br';
+      const adminPassword = process.env.ADMIN_PASSWORD || 'PortALLAdmin@2026!';
       const adminName = process.env.ADMIN_NAME || 'Master';
       
       const hash = await bcrypt.hash(adminPassword, 12);

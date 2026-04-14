@@ -196,14 +196,14 @@ router.post('/forgot-password', async (req: Request, res: Response) => {
         [resetTokenHash, expiresAt, user.id]
       );
 
-      const appUrl = process.env.APP_URL || 'https://ronda.ehspro.com.br';
+      const appUrl = process.env.APP_URL || 'https://portall.ehspro.com.br';
       const resetUrl = `${appUrl}/?reset_token=${resetToken}`;
 
       // Envia email
       await mailer.sendMail({
-        from: `"RondaDigital" <${process.env.SMTP_USER}>`,
+        from: `"PortALL" <${process.env.SMTP_USER}>`,
         to: user.email,
-        subject: 'Redefinição de Senha — RondaDigital',
+        subject: 'Redefinição de Senha — PortALL',
         html: `
           <!DOCTYPE html>
           <html lang="pt-BR">
@@ -211,8 +211,8 @@ router.post('/forgot-password', async (req: Request, res: Response) => {
           <body style="font-family: Arial, sans-serif; background-color: #f5f5f5; padding: 40px 20px;">
             <div style="max-width: 500px; margin: 0 auto; background: white; border-radius: 16px; padding: 40px; box-shadow: 0 4px 20px rgba(0,0,0,0.08);">
               <div style="text-align: center; margin-bottom: 32px;">
-                <img src="${process.env.APP_URL || 'https://ronda.ehspro.com.br'}/RondaDigital.png" alt="RondaDigital" style="height: 48px; margin-bottom: 8px; object-fit: contain;">
-                <p style="color: #6b7280; margin: 0;">Segurança e Controle em Tempo Real</p>
+                <img src="${process.env.APP_URL || 'https://portall.ehspro.com.br'}/LogoApenas.png" alt="PortALL" style="height: 48px; margin-bottom: 8px; object-fit: contain;">
+                <p style="color: #6b7280; margin: 0;">Gestão de Acessos e Terceiros</p>
               </div>
               <h2 style="color: #1f2937; font-size: 18px;">Olá, ${user.display_name}!</h2>
               <p style="color: #4b5563; line-height: 1.6;">
@@ -230,7 +230,7 @@ router.post('/forgot-password', async (req: Request, res: Response) => {
               </p>
               <hr style="border: none; border-top: 1px solid #f3f4f6; margin: 24px 0;">
               <p style="color: #9ca3af; font-size: 11px; text-align: center;">
-                RondaDigital &copy; ${new Date().getFullYear()} — EHS Pro
+                PortALL &copy; ${new Date().getFullYear()} — Gestão de Acessos
               </p>
             </div>
           </body>

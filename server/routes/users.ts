@@ -177,22 +177,26 @@ router.post('/', async (req: AuthRequest, res: Response) => {
       [resetTokenHash, expiresAt, user.id]
     );
 
-    const appUrl = process.env.APP_URL || 'http://localhost:3000';
+    const appUrl = process.env.APP_URL || 'https://portall.ehspro.com.br';
     const resetUrl = `${appUrl}/?reset_token=${resetToken}`;
 
     await mailer.sendMail({
-      from: `"Controle de Terceiros" <${process.env.SMTP_USER}>`,
+      from: `"PortALL" <${process.env.SMTP_USER}>`,
       to: user.email,
-      subject: 'Convite para o Sistema de Terceirização',
+      subject: 'Convite para o Sistema PortALL',
       html: `
         <!DOCTYPE html>
         <html lang="pt-BR">
         <head><meta charset="UTF-8"></head>
         <body style="font-family: Arial, sans-serif; background-color: #f5f5f5; padding: 40px 20px;">
           <div style="max-width: 500px; margin: 0 auto; background: white; border-radius: 16px; padding: 40px; box-shadow: 0 4px 20px rgba(0,0,0,0.08);">
+            <div style="text-align: center; margin-bottom: 32px;">
+              <img src="${appUrl}/LogoApenas.png" alt="PortALL" style="height: 48px; margin-bottom: 8px; object-fit: contain;">
+              <p style="color: #6b7280; margin: 0;">Gestão de Acessos e Terceiros</p>
+            </div>
             <h2 style="color: #1f2937; font-size: 18px;">Olá, ${user.display_name}!</h2>
             <p style="color: #4b5563; line-height: 1.6;">
-              Você foi convidado para acessar e utilizar o Sistema de Controle de Terceiros. 
+              Você foi convidado para acessar e utilizar o **PortALL**, o sistema de controle de acesso e terceiros. 
               Clique no botão abaixo para concluir o seu cadastro definindo a sua senha inicial de acesso:
             </p>
             <div style="text-align: center; margin: 32px 0;">
@@ -203,6 +207,10 @@ router.post('/', async (req: AuthRequest, res: Response) => {
             </div>
             <p style="color: #9ca3af; font-size: 13px; text-align: center;">
               Este link de cadastro inicial é válido por <strong>1 hora</strong>.<br>
+            </p>
+            <hr style="border: none; border-top: 1px solid #f3f4f6; margin: 24px 0;">
+            <p style="color: #9ca3af; font-size: 11px; text-align: center;">
+              PortALL &copy; ${new Date().getFullYear()} — Gestão de Acessos
             </p>
           </div>
         </body>

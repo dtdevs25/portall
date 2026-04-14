@@ -1,5 +1,5 @@
 {
-  "name": "RondaDigital",
-  "description": "Sistema moderno de controle de rondas com leitura de QR Code, relatórios em tempo real e gestão de locais.",
+  "name": "PortALL",
+  "description": "Sistema moderno de gestão de terceiros, visitantes e prestadores de serviço com controle de treinamentos e acesso.",
   "requestFramePermissions": ["camera"]
 }
