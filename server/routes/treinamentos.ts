@@ -195,19 +195,7 @@ router.post('/atividades', async (req: AuthRequest, res: Response) => {
     res.status(500).json({ error: 'Erro ao criar atividade.' });
   }
 });
-    
-    if (doc && Array.isArray(treinamentosObrigatorios) && treinamentosObrigatorios.length > 0) {
-      for (const tId of treinamentosObrigatorios) {
-         await query('INSERT INTO atividade_treinamentos (atividade_id, treinamento_id) VALUES ($1, $2)', [doc.id, tId]);
-      }
-    }
 
-    res.status(201).json({ id: doc?.id });
-  } catch (err) {
-    console.error('POST atividades error:', err);
-    res.status(500).json({ error: 'Erro ao criar atividade.' });
-  }
-});
 
 // ============================================================
 // PUT /api/treinamentos/atividades/:id
