@@ -112,21 +112,38 @@ router.post('/', async (req: AuthRequest, res: Response) => {
 });
 
 // ============================================================
-// PUT /api/companies/:id — Apenas Master
+// PUT /api/companies/:id
 // ============================================================
-router.put('/:id', requireMaster, async (req: AuthRequest, res: Response) => {
+router.put('/:id', async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
-    const { name, cnpj, is_active, parentId } = req.body;
+    const { name, cnpj, is_active } = req.body;
+
+    if (req.user?.role !== 'master') {
+      // Admin só edita se for uma das que ele gere
+      const hasAccess = await queryOne(
+        `SELECT id FROM companies 
+         WHERE id = $1 AND (
+           id IN (SELECT company_id FROM user_companies WHERE user_id = $2)
+           OR 
+           parent_id IN (SELECT company_id FROM user_companies WHERE user_id = $2)
+         )`,
+        [id, req.user!.userId]
+      );
+      if (!hasAccess) {
+        res.status(403).json({ error: 'Permissão negada para editar esta empresa.' });
+        return;
+      }
+    }
 
     const company = await queryOne<{
       id: string; parent_id: string | null; name: string;
       cnpj: string; is_active: boolean; created_at: string;
     }>(
-      `UPDATE companies SET name = $1, cnpj = $2, is_active = COALESCE($3, is_active), parent_id = $4
-       WHERE id = $5
+      `UPDATE companies SET name = COALESCE($1, name), cnpj = COALESCE($2, cnpj), is_active = COALESCE($3, is_active)
+       WHERE id = $4
        RETURNING id, parent_id, name, cnpj, is_active, created_at`,
-      [name?.trim(), cnpj?.trim() || null, is_active, parentId || null, id]
+      [name?.trim(), cnpj?.trim() || null, is_active, id]
     );
 
     if (!company) {
@@ -145,11 +162,27 @@ router.put('/:id', requireMaster, async (req: AuthRequest, res: Response) => {
 });
 
 // ============================================================
-// DELETE /api/companies/:id — Apenas Master
+// DELETE /api/companies/:id
 // ============================================================
-router.delete('/:id', requireMaster, async (req: AuthRequest, res: Response) => {
+router.delete('/:id', async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
+
+    if (req.user?.role !== 'master') {
+      const hasAccess = await queryOne(
+        `SELECT id FROM companies 
+         WHERE id = $1 AND (
+           id IN (SELECT company_id FROM user_companies WHERE user_id = $2)
+           OR 
+           parent_id IN (SELECT company_id FROM user_companies WHERE user_id = $2)
+         )`,
+        [id, req.user!.userId]
+      );
+      if (!hasAccess) {
+        res.status(403).json({ error: 'Permissão negada para excluir esta empresa.' });
+        return;
+      }
+    }
 
     const deleted = await queryOne<{ id: string }>(
       'DELETE FROM companies WHERE id = $1 RETURNING id', [id]

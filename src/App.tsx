@@ -316,7 +316,7 @@ function Header({ profile, onLogout }: { profile: UserProfile; onLogout: () => v
 
 // ─── Sidebar ─────────────────────────────────────────────────────────────────
 
-type TabId = 'portaria' | 'pessoas' | 'empresas_terceiro' | 'treinamentos' | 'atividades' | 'companies' | 'usuarios';
+type TabId = 'portaria' | 'pessoas' | 'empresas_terceiro' | 'treinamentos' | 'companies' | 'usuarios';
 
 function Sidebar({ activeTab, setActiveTab, profile, collapsed, setCollapsed }: {
   activeTab: TabId; setActiveTab: (t: TabId) => void;
@@ -327,7 +327,6 @@ function Sidebar({ activeTab, setActiveTab, profile, collapsed, setCollapsed }: 
     { id: 'pessoas',         label: 'Visitantes e Prestadores', icon: Users, roles: ['master','admin'],          category: 'NAVEGAÇÃO' },
     { id: 'empresas_terceiro',label:'Provedores',           icon: Building2,   roles: ['master','admin'],          category: 'CADASTROS' },
     { id: 'treinamentos',    label: 'Treinamentos',         icon: BookOpen,   roles: ['master','admin'],          category: 'CADASTROS' },
-    { id: 'atividades',      label: 'Profissões / Funções', icon: Briefcase,   roles: ['master','admin'],          category: 'CADASTROS' },
     { id: 'companies',       label: 'Empresas',             icon: ShieldCheck, roles: ['master', 'admin'],          category: 'CONFIGURAÇÕES' },
     { id: 'usuarios',        label: 'Usuários do Sistema',  icon: UserCog,     roles: ['master','admin'],          category: 'CONFIGURAÇÕES' },
   ];
@@ -656,7 +655,7 @@ const emptyPessoaForm = (): PessoaForm => ({
   tipoAcesso: 'visitante', foto: '', nomeCompleto: '', documento: '',
   empresaOrigemId: '', responsavelInterno: '', celularAutorizado: false,
   notebookAutorizado: false, liberadoAte: '', descricaoAtividade: '',
-  atividadeId: '', asoDataRealizacao: '', epiObrigatorio: false, epiDescricao: '',
+  asoDataRealizacao: '', epiObrigatorio: false, epiDescricao: '',
   treinamentos: [],
   companyId: '',
 });
@@ -664,7 +663,6 @@ const emptyPessoaForm = (): PessoaForm => ({
 function PessoasView({ profile }: { profile: UserProfile }) {
   const [pessoas, setPessoas] = useState<Pessoa[]>([]);
   const [empresasTerceiro, setEmpresasTerceiro] = useState<EmpresaTerceiro[]>([]);
-  const [atividades, setAtividades] = useState<TipoAtividade[]>([]);
   const [treiTipos, setTreiTipos] = useState<TipoTreinamento[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [showForm, setShowForm] = useState(false);
@@ -678,16 +676,14 @@ function PessoasView({ profile }: { profile: UserProfile }) {
 
   const fetchAll = async () => {
     try {
-      const [p, e, a, t, c] = await Promise.all([
+      const [p, e, t, c] = await Promise.all([
         api.get<Pessoa[]>('/pessoas'),
         api.get<EmpresaTerceiro[]>('/empresas-terceiro'),
-        api.get<TipoAtividade[]>('/treinamentos/atividades'),
         api.get<TipoTreinamento[]>('/treinamentos/tipos'),
         api.get<Company[]>('/companies'),
       ]);
       setPessoas(p || []);
       setEmpresasTerceiro(e || []);
-      setAtividades(a || []);
       setTreiTipos(t || []);
       setCompanies(c || []);
     } catch {}
@@ -836,10 +832,6 @@ function PessoasView({ profile }: { profile: UserProfile }) {
                 <div className="space-y-4 p-4 bg-blue-50 rounded-2xl border border-blue-100">
                   <h4 className="text-xs font-bold text-blue-600 uppercase tracking-wider">Dados do Prestador</h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <Select label="Tipo de Atividade" value={form.atividadeId} onChange={v => setForm(f => ({ ...f, atividadeId: v }))}>
-                      <option value="">— Selecione —</option>
-                      {atividades.map(a => <option key={a.id} value={a.id}>{a.nome}</option>)}
-                    </Select>
                     <Input label="ASO — Data de Realização" type="date" value={form.asoDataRealizacao} onChange={v => setForm(f => ({ ...f, asoDataRealizacao: v }))} />
                   </div>
                   <Toggle label="EPI obrigatório" checked={form.epiObrigatorio} onChange={v => setForm(f => ({ ...f, epiObrigatorio: v }))} />
@@ -1027,7 +1019,7 @@ function EmpresasTerceiroView({ profile }: { profile: UserProfile }) {
 function TreinamentosView({ profile }: { profile: UserProfile }) {
   const [items, setItems] = useState<TipoTreinamento[]>([]);
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ nome: '', codigo: '', validadeMeses: '12', escopo: 'personalizado', companyId: '' });
+  const [form, setForm] = useState({ nome: '', validadeMeses: '12', escopo: 'personalizado', companyId: '' });
   const [companies, setCompanies] = useState<Company[]>([]);
   const [saving, setSaving] = useState(false);
 
@@ -1044,7 +1036,7 @@ function TreinamentosView({ profile }: { profile: UserProfile }) {
     try { 
       await api.post('/treinamentos/tipos', form); 
       fetchAll(); setShowForm(false); 
-      setForm({ nome: '', codigo: '', validadeMeses: '12', escopo: 'personalizado', companyId: '' }); 
+      setForm({ nome: '', validadeMeses: '12', escopo: 'personalizado', companyId: '' }); 
     }
     catch (err: any) { alert(err.error || 'Erro.'); } finally { setSaving(false); }
   };
@@ -1088,8 +1080,7 @@ function TreinamentosView({ profile }: { profile: UserProfile }) {
         {showForm && (
           <Modal title="Novo Tipo de Treinamento" onClose={() => setShowForm(false)}>
             <form onSubmit={handleSave} className="space-y-4">
-              <Input label="Nome" value={form.nome} onChange={v => setForm(f => ({ ...f, nome: v }))} required placeholder="Ex: Trabalho em Altura" />
-              <Input label="Código" value={form.codigo} onChange={v => setForm(f => ({ ...f, codigo: v }))} required placeholder="Ex: NR35" />
+              <Input label="Descrição do Treinamento" value={form.nome} onChange={v => setForm(f => ({ ...f, nome: v }))} required placeholder="Ex: NR 10 - Segurança em Eletricidade" />
               <Input label="Validade (meses)" type="number" value={form.validadeMeses} onChange={v => setForm(f => ({ ...f, validadeMeses: v }))} required />
               {profile.role === 'master' && (
                 <Select label="Escopo" value={form.escopo} onChange={v => setForm(f => ({ ...f, escopo: v }))}>
@@ -1115,101 +1106,8 @@ function TreinamentosView({ profile }: { profile: UserProfile }) {
   );
 }
 
-// ─── Atividades View ──────────────────────────────────────────────────────────
 
-function AtividadesView({ profile }: { profile: UserProfile }) {
-  const [items, setItems] = useState<TipoAtividade[]>([]);
-  const [treiTipos, setTreiTipos] = useState<TipoTreinamento[]>([]);
-  const [companies, setCompanies] = useState<Company[]>([]);
-  const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ nome: '', companyId: '', treinamentosObrigatorios: [] as string[] });
-  const [saving, setSaving] = useState(false);
 
-  useEffect(() => { fetchAll(); }, []);
-  const fetchAll = async () => {
-    try {
-      const [a, t, c] = await Promise.all([
-        api.get<TipoAtividade[]>('/treinamentos/atividades'), 
-        api.get<TipoTreinamento[]>('/treinamentos/tipos'),
-        api.get<Company[]>('/companies')
-      ]);
-      setItems(a || []); setTreiTipos(t || []); setCompanies(c || []);
-    } catch {}
-  };
-
-  const toggleTreinamento = (id: string) => {
-    setForm(f => ({ ...f, treinamentosObrigatorios: f.treinamentosObrigatorios.includes(id) ? f.treinamentosObrigatorios.filter(x => x !== id) : [...f.treinamentosObrigatorios, id] }));
-  };
-
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault(); setSaving(true);
-    try { 
-      await api.post('/treinamentos/atividades', form); 
-      fetchAll(); setShowForm(false); 
-      setForm({ nome: '', companyId: '', treinamentosObrigatorios: [] }); 
-    }
-    catch (err: any) { alert(err.error || 'Erro.'); } finally { setSaving(false); }
-  };
-
-  return (
-    <div className="max-w-4xl mx-auto space-y-6">
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Tipos de Atividade</h1>
-          <p className="text-sm text-slate-500 mt-0.5">Defina quais treinamentos são obrigatórios por atividade.</p>
-        </div>
-        <Button onClick={() => setShowForm(true)}><Plus size={16} /> Nova</Button>
-      </div>
-      <div className="space-y-3">
-        {items.map(a => (
-          <Card key={a.id} className="p-4">
-            <p className="font-semibold text-slate-900 mb-2">{a.nome}</p>
-            {a.treinamentosObrigatorios && a.treinamentosObrigatorios.length > 0 ? (
-              <div className="flex flex-wrap gap-2">
-                {a.treinamentosObrigatorios.map(id => {
-                  const t = treiTipos.find(tt => tt.id === id);
-                  return t ? <span key={id} className="text-xs font-bold bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">{t.codigo}</span> : null;
-                })}
-              </div>
-            ) : <p className="text-xs text-slate-400 italic">Nenhum treinamento obrigatório vinculado.</p>}
-          </Card>
-        ))}
-        {items.length === 0 && <Card><EmptyState icon={Briefcase} title="Nenhuma atividade cadastrada" /></Card>}
-      </div>
-      <AnimatePresence>
-        {showForm && (
-          <Modal title="Nova Atividade" onClose={() => setShowForm(false)}>
-            <form onSubmit={handleSave} className="space-y-4">
-              <Input label="Nome da Atividade" value={form.nome} onChange={v => setForm(f => ({ ...f, nome: v }))} required placeholder="Ex: Trabalho em Altura" />
-              {(profile.role === 'master' || profile.role === 'admin') && (
-                <Select label="Empresa" value={form.companyId} onChange={v => setForm(f => ({ ...f, companyId: v }))} required>
-                  <option value="">— Selecione —</option>
-                  {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                </Select>
-              )}
-              <div>
-                <label className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Treinamentos Obrigatórios</label>
-                <div className="mt-2 space-y-2 max-h-60 overflow-y-auto">
-                  {treiTipos.map(t => (
-                    <label key={t.id} className="flex items-center gap-3 cursor-pointer p-2 rounded-lg hover:bg-slate-50">
-                      <input type="checkbox" checked={form.treinamentosObrigatorios.includes(t.id)} onChange={() => toggleTreinamento(t.id)}
-                        className="w-4 h-4 accent-blue-600" />
-                      <span className="text-sm text-slate-700"><span className="font-bold text-blue-600 mr-1">{t.codigo}</span>{t.nome}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-              <div className="flex justify-end gap-2 pt-2">
-                <Button variant="ghost" onClick={() => setShowForm(false)}>Cancelar</Button>
-                <Button type="submit" disabled={saving}>{saving ? 'Salvando...' : 'Salvar'}</Button>
-              </div>
-            </form>
-          </Modal>
-        )}
-      </AnimatePresence>
-    </div>
-  );
-}
 
 // ─── Companies View (Master + Admin) ─────────────────────────────────────────
 
@@ -1321,6 +1219,22 @@ function CompaniesView({ profile }: { profile: UserProfile }) {
     finally { setSaving(false); }
   };
 
+  const handleUpdateCompany = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editTarget) return;
+    setSaving(true);
+    try {
+      await api.put(`/companies/${editTarget.id}`, {
+        name: companyForm.name,
+        cnpj: companyForm.cnpj.replace(/\D/g, ''),
+      });
+      setCompanyForm({ name: '', cnpj: '' });
+      setEditTarget(null);
+      fetchAll();
+    } catch (err: any) { alert(err.error || 'Erro ao atualizar.'); }
+    finally { setSaving(false); }
+  };
+
   const handleDeleteCompany = async (id: string) => {
     if (!confirm('Excluir esta empresa? Todas as filiais e dados associados serão removidos.')) return;
     try { await api.delete(`/companies/${id}`); fetchAll(); }
@@ -1409,14 +1323,20 @@ function CompaniesView({ profile }: { profile: UserProfile }) {
                   >
                     <Plus size={14} /> Filial
                   </button>
-                  {profile.role === 'master' && (
-                    <button
-                      onClick={() => handleDeleteCompany(company.id)}
-                      className="p-1.5 rounded-xl text-slate-300 hover:text-red-500 hover:bg-red-50 transition-all"
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  )}
+                  <button
+                    onClick={() => { setCompanyForm({ name: company.name, cnpj: company.cnpj || '' }); setEditTarget(company); }}
+                    className="p-1.5 rounded-xl text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-all"
+                    title="Editar Empresa"
+                  >
+                    <UserCog size={14} />
+                  </button>
+                  <button
+                    onClick={() => handleDeleteCompany(company.id)}
+                    className="p-1.5 rounded-xl text-slate-300 hover:text-red-500 hover:bg-red-50 transition-all"
+                    title="Excluir Empresa"
+                  >
+                    <Trash2 size={14} />
+                  </button>
                 </div>
               </div>
 
@@ -1457,14 +1377,22 @@ function CompaniesView({ profile }: { profile: UserProfile }) {
                             )}
                           </div>
                         </div>
-                        {profile.role === 'master' && (
+                        <div className="flex items-center justify-end gap-1 group">
+                          <button
+                            onClick={() => { setBranchForm({ name: branch.name, cnpj: branch.cnpj || '' }); setEditTarget(branch); }}
+                            className="p-2 rounded-xl text-slate-300 hover:text-blue-600 hover:bg-blue-50 transition-all opacity-0 group-hover:opacity-100"
+                            title="Editar Unidade"
+                          >
+                            <UserCog size={14} />
+                          </button>
                           <button
                             onClick={() => handleDeleteCompany(branch.id)}
                             className="p-2 rounded-xl text-slate-300 hover:text-red-500 hover:bg-red-50 transition-all opacity-0 group-hover:opacity-100"
+                            title="Excluir Unidade"
                           >
                             <Trash2 size={14} />
                           </button>
-                        )}
+                        </div>
                       </div>
                     );
                   })}
@@ -1516,6 +1444,25 @@ function CompaniesView({ profile }: { profile: UserProfile }) {
               <div className="flex justify-end gap-2 pt-2">
                 <Button variant="ghost" onClick={() => setShowBranchFor(null)}>Cancelar</Button>
                 <Button type="submit" disabled={saving}>{saving ? 'Criando...' : 'Criar Filial'}</Button>
+              </div>
+            </form>
+          </Modal>
+        )}
+      </AnimatePresence>
+
+      {/* ─── Modal: Editar Empresa / Unidade ─── */}
+      <AnimatePresence>
+        {editTarget && (
+          <Modal title={`Editar — ${editTarget.name}`} onClose={() => setEditTarget(null)}>
+            <form onSubmit={handleUpdateCompany} className="space-y-4">
+              <Input label="Nome" value={companyForm.name}
+                onChange={v => setCompanyForm(f => ({ ...f, name: v }))} required />
+              <Input label="CNPJ" value={companyForm.cnpj}
+                onChange={v => setCompanyForm(f => ({ ...f, cnpj: maskCNPJ(v) }))}
+                placeholder="00.000.000/0000-00" />
+              <div className="flex justify-end gap-2 pt-2">
+                <Button variant="ghost" onClick={() => setEditTarget(null)}>Cancelar</Button>
+                <Button type="submit" disabled={saving}>{saving ? 'Atualizando...' : 'Salvar Alterações'}</Button>
               </div>
             </form>
           </Modal>
@@ -1599,6 +1546,7 @@ function UsuariosView({ profile }: { profile: UserProfile }) {
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [showForm, setShowForm] = useState(false);
+  const [editTarget, setEditTarget] = useState<UserProfile | null>(null);
   const [form, setForm] = useState({ email: '', displayName: '', role: 'viewer', companyId: '' });
   const [saving, setSaving] = useState(false);
 
@@ -1614,13 +1562,23 @@ function UsuariosView({ profile }: { profile: UserProfile }) {
     e.preventDefault(); setSaving(true);
     try {
       const payload = { ...form };
-      // Se for admin, usa o companyId selecionado, se não tiver usa o do perfil como fallback
-      if (profile.role === 'admin') {
-        payload.companyId = form.companyId || profile.companyId;
+      if (profile.role === 'admin') payload.companyId = form.companyId || profile.companyId;
+
+      if (editTarget) {
+        await api.put(`/users/${editTarget.uid || editTarget.id}`, payload);
+      } else {
+        await api.post('/users', payload);
       }
-      await api.post('/users', payload);
-      fetchAll(); setShowForm(false); setForm({ email: '', displayName: '', role: 'viewer', companyId: '' });
+      
+      fetchAll(); setShowForm(false); setEditTarget(null); setForm({ email: '', displayName: '', role: 'viewer', companyId: '' });
     } catch (err: any) { alert(err.error || 'Erro.'); } finally { setSaving(false); }
+  };
+
+  const handleResendInvite = async (id: string) => {
+    try {
+      await api.post(`/users/${id}/resend-invite`);
+      alert('Link de acesso enviado com sucesso para o e-mail do usuário.');
+    } catch (err: any) { alert(err.error || 'Erro ao reenviar.'); }
   };
 
   const handleDelete = async (id: string) => {
@@ -1673,11 +1631,35 @@ function UsuariosView({ profile }: { profile: UserProfile }) {
                     </span>
                   </td>
                   <td className="px-4 py-3">
-                    {(u.uid !== profile.uid && u.id !== profile.id) && (
-                      <div className="flex items-center justify-end gap-1">
-                        <Button variant="ghost" size="sm" onClick={() => handleDelete(u.uid || u.id || '')}><Trash2 size={14} /></Button>
-                      </div>
-                    )}
+                    <div className="flex items-center justify-end gap-1 group">
+                      <button
+                        onClick={() => handleResendInvite(u.uid || u.id || '')}
+                        className="p-1.5 rounded-xl text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 transition-all opacity-0 group-hover:opacity-100"
+                        title="Reenviar Acesso"
+                      >
+                        <RefreshCw size={14} />
+                      </button>
+                      <button
+                        onClick={() => {
+                          setForm({ email: u.email || '', displayName: u.displayName || '', role: u.role || 'viewer', companyId: u.companyId || '' });
+                          setEditTarget(u);
+                          setShowForm(true);
+                        }}
+                        className="p-1.5 rounded-xl text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-all opacity-0 group-hover:opacity-100"
+                        title="Editar Usuário"
+                      >
+                        <UserCog size={14} />
+                      </button>
+                      {(u.uid !== profile.uid && u.id !== profile.id) && (
+                        <button
+                          onClick={() => handleDelete(u.uid || u.id || '')}
+                          className="p-1.5 rounded-xl text-slate-400 hover:text-red-600 hover:bg-red-50 transition-all opacity-0 group-hover:opacity-100"
+                          title="Excluir Usuário"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -1688,7 +1670,7 @@ function UsuariosView({ profile }: { profile: UserProfile }) {
       </Card>
       <AnimatePresence>
         {showForm && (
-          <Modal title="Convidar Usuário" onClose={() => setShowForm(false)}>
+          <Modal title={editTarget ? `Editar Usuário — ${editTarget.displayName}` : "Convidar Usuário"} onClose={() => { setShowForm(false); setEditTarget(null); }}>
             <form onSubmit={handleSave} className="space-y-4">
               <Input label="Nome" value={form.displayName} onChange={v => setForm(f => ({ ...f, displayName: v }))} required />
               <Input label="E-mail" type="email" value={form.email} onChange={v => setForm(f => ({ ...f, email: v }))} required />
@@ -1708,8 +1690,8 @@ function UsuariosView({ profile }: { profile: UserProfile }) {
                 O usuário receberá um e-mail com link para definir sua senha de acesso.
               </div>
               <div className="flex justify-end gap-2 pt-2">
-                <Button variant="ghost" onClick={() => setShowForm(false)}>Cancelar</Button>
-                <Button type="submit" disabled={saving}>{saving ? 'Enviando convite...' : 'Convidar'}</Button>
+                <Button variant="ghost" onClick={() => { setShowForm(false); setEditTarget(null); }}>Cancelar</Button>
+                <Button type="submit" disabled={saving}>{saving ? 'Salvando...' : editTarget ? 'Salvar Alterações' : 'Convidar'}</Button>
               </div>
             </form>
           </Modal>

@@ -254,28 +254,12 @@ async function canUpdateUser(reqUserId: string, reqUserRole: string, reqUserComp
 }
 
 // ============================================================
-// PUT /api/users/:id/role - Altera o role
+// PUT /api/users/:id - Atualiza usuário (Nome, Email, Role, Company)
 // ============================================================
-router.put('/:id/role', async (req: AuthRequest, res: Response) => {
+router.put('/:id', async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
-    const { role } = req.body;
-
-    const validRoles = ['master', 'admin', 'viewer'];
-    if (!validRoles.includes(role)) {
-      res.status(400).json({ error: 'Role inválido.' });
-      return;
-    }
-
-    if (id === req.user?.userId && role !== req.user?.role) {
-       res.status(400).json({ error: 'Você não pode alterar seu próprio nível neste menu.' });
-       return;
-    }
-
-    if (req.user?.role === 'admin' && role === 'master') {
-       res.status(403).json({ error: 'Administradores não podem promover usuários para master.' });
-       return;
-    }
+    const { displayName, email, role, companyId } = req.body;
 
     const canEdit = await canUpdateUser(req.user!.userId, req.user!.role, req.user!.companyId, id);
     if (!canEdit) {
@@ -283,18 +267,23 @@ router.put('/:id/role', async (req: AuthRequest, res: Response) => {
       return;
     }
 
+    // Validações de roteamento/role
+    if (req.user?.role === 'admin' && role === 'master') {
+      res.status(403).json({ error: 'Admin não pode promover a master.' });
+      return;
+    }
+
     const user = await queryOne<{
-      id: string;
-      email: string;
-      display_name: string;
-      role: string;
-      company_id: string;
-      is_active: boolean;
-      created_at: string;
+      id: string; email: string; display_name: string; role: string; company_id: string;
     }>(
-      `UPDATE users SET role = $1 WHERE id = $2
-       RETURNING id, email, display_name, role, company_id, is_active, created_at`,
-      [role, id]
+      `UPDATE users 
+       SET display_name = COALESCE($1, display_name),
+           email = COALESCE($2, email),
+           role = COALESCE($3, role),
+           company_id = COALESCE($4, company_id)
+       WHERE id = $5
+       RETURNING id, email, display_name, role, company_id`,
+      [displayName?.trim(), email?.trim()?.toLowerCase(), role, companyId || null, id]
     );
 
     if (!user) {
@@ -302,23 +291,24 @@ router.put('/:id/role', async (req: AuthRequest, res: Response) => {
       return;
     }
 
+    // Se mudou a empresa, atualiza o vínculo no user_companies
+    if (companyId) {
+      await query(`DELETE FROM user_companies WHERE user_id = $1`, [id]);
+      await query(`INSERT INTO user_companies (user_id, company_id) VALUES ($1, $2)`, [id, companyId]);
+    }
+
     res.json({
       uid: user.id,
       email: user.email,
       displayName: user.display_name,
       role: user.role,
-      companyId: user.company_id,
-      isActive: user.is_active,
-      createdAt: user.created_at,
+      companyId: user.company_id
     });
   } catch (err) {
-    console.error('PUT /users/:id/role error:', err);
-    res.status(500).json({ error: 'Erro ao alterar nível.' });
+    console.error('PUT /users/:id error:', err);
+    res.status(500).json({ error: 'Erro ao atualizar usuário.' });
   }
 });
-
-// AQUI ESTÃO OS MÉTODOS DE TOGGLE, DELETE E RESEND... 
-// Omitidos por simplicidade se for espelho de acima
 
 router.delete('/:id', async (req: AuthRequest, res: Response) => {
   try {

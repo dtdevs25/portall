@@ -56,42 +56,16 @@ router.use((req: AuthRequest, res: Response, next) => {
 // ============================================================
 router.post('/tipos', async (req: AuthRequest, res: Response) => {
   try {
-    let { nome, codigo, validadeMeses, escopo, companyId } = req.body;
-
-    if (!nome || !codigo || !validadeMeses) {
-      res.status(400).json({ error: 'Nome, código e validade são obrigatórios.' });
-      return;
-    }
-
-    if (req.user?.role === 'admin') {
-      escopo = 'personalizado';
-      // Admin deve informar qual empresa o treinamento pertence (dentre as que ele gere)
-      if (!companyId) {
-        res.status(400).json({ error: 'ID da companhia mandante é obrigatório.' });
-        return;
-      }
-      const hasAccess = await queryOne(
-        `SELECT id FROM companies 
-         WHERE id = $1 AND (
-           id IN (SELECT company_id FROM user_companies WHERE user_id = $2)
-           OR 
-           parent_id IN (SELECT company_id FROM user_companies WHERE user_id = $2)
-         )`,
-        [companyId, req.user.userId]
-      );
-      if (!hasAccess) {
-        res.status(403).json({ error: 'Você não tem permissão para cadastrar treinamentos nesta unidade.' });
-        return;
-      }
-    } else if (escopo === 'global') {
-      companyId = null; 
-    }
+    // Gera código sequencial 001, 002, 003...
+    const countRes = await queryOne<{ count: string }>('SELECT COUNT(*) as count FROM tipos_treinamento');
+    const nextNum = parseInt(countRes?.count || '0') + 1;
+    const autoCodigo = nextNum.toString().padStart(3, '0');
 
     const doc = await queryOne(
       `INSERT INTO tipos_treinamento (nome, codigo, validade_meses, escopo, company_id)
        VALUES ($1, $2, $3, $4, $5)
        RETURNING *`,
-      [nome.trim(), codigo.trim(), parseInt(validadeMeses), escopo, companyId]
+      [nome.trim(), autoCodigo, parseInt(validadeMeses), escopo, companyId]
     );
 
     res.status(201).json(doc);
