@@ -9,7 +9,7 @@ import {
   Plus, Trash2, Pencil, Eye, EyeOff, Search, ChevronLeft, ChevronRight,
   Menu, X, AlertTriangle, CheckCircle2, XCircle, Clock, Camera,
   Upload, ArrowRightCircle, ArrowLeftCircle, RefreshCw, BookOpen,
-  Briefcase, UserCog, Bell, Home
+  Briefcase, UserCog, Bell, Home, Mail
 } from 'lucide-react';
 import { format, parseISO, isValid } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -1572,6 +1572,7 @@ function UsuariosView({ profile }: { profile: UserProfile }) {
   const [editTarget, setEditTarget] = useState<UserProfile | null>(null);
   const [form, setForm] = useState({ email: '', displayName: '', role: 'viewer', companyId: '' });
   const [saving, setSaving] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<UserProfile | null>(null);
 
   useEffect(() => { fetchAll(); }, []);
   const fetchAll = async () => {
@@ -1604,9 +1605,14 @@ function UsuariosView({ profile }: { profile: UserProfile }) {
     } catch (err: any) { alert(err.error || 'Erro ao reenviar.'); }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Excluir usuário?')) return;
-    try { await api.delete(`/users/${id}`); fetchAll(); } catch (err: any) { alert(err.error || 'Erro.'); }
+  const handleDelete = async () => {
+    if (!showDeleteConfirm) return;
+    setSaving(true);
+    try { 
+      await api.delete(`/users/${showDeleteConfirm.uid || showDeleteConfirm.id}`); 
+      fetchAll(); 
+      setShowDeleteConfirm(null);
+    } catch (err: any) { alert(err.error || 'Erro.'); } finally { setSaving(false); }
   };
 
   const roleLabel = (r: string) => ({ master: 'Master', admin: 'Administrador', viewer: 'Visualizador' }[r] || r);
@@ -1625,8 +1631,7 @@ function UsuariosView({ profile }: { profile: UserProfile }) {
           <table className="w-full">
             <thead>
               <tr className="border-b border-slate-100">
-                {['Usuário', 'Nível', 'Empresa', 'Status'].map(h => <th key={h} className="text-left px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider">{h}</th>)}
-                <th className="px-4 py-3" />
+                {['Usuário', 'Nível', 'Empresa', 'Status', 'Ações'].map(h => <th key={h} className={cn("px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider", h === 'Ações' ? 'text-right' : 'text-left')}>{h}</th>)}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
@@ -1654,13 +1659,13 @@ function UsuariosView({ profile }: { profile: UserProfile }) {
                     </span>
                   </td>
                   <td className="px-4 py-3">
-                    <div className="flex items-center justify-end gap-1 group">
+                    <div className="flex items-center justify-end gap-1">
                       <button
                         onClick={() => handleResendInvite(u.uid || u.id || '')}
-                        className="p-1.5 rounded-xl text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 transition-all opacity-0 group-hover:opacity-100"
+                        className="p-1.5 rounded-xl text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 transition-all"
                         title="Reenviar Acesso"
                       >
-                        <RefreshCw size={14} />
+                        <Mail size={16} />
                       </button>
                       <button
                         onClick={() => {
@@ -1668,18 +1673,18 @@ function UsuariosView({ profile }: { profile: UserProfile }) {
                           setEditTarget(u);
                           setShowForm(true);
                         }}
-                        className="p-1.5 rounded-xl text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-all opacity-0 group-hover:opacity-100"
+                        className="p-1.5 rounded-xl text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-all"
                         title="Editar Usuário"
                       >
-                        <UserCog size={14} />
+                        <Pencil size={16} />
                       </button>
                       {(u.uid !== profile.uid && u.id !== profile.id) && (
                         <button
-                          onClick={() => handleDelete(u.uid || u.id || '')}
-                          className="p-1.5 rounded-xl text-slate-400 hover:text-red-600 hover:bg-red-50 transition-all opacity-0 group-hover:opacity-100"
+                          onClick={() => setShowDeleteConfirm(u)}
+                          className="p-1.5 rounded-xl text-slate-400 hover:text-red-600 hover:bg-red-50 transition-all"
                           title="Excluir Usuário"
                         >
-                          <Trash2 size={14} />
+                          <Trash2 size={16} />
                         </button>
                       )}
                     </div>
@@ -1716,6 +1721,32 @@ function UsuariosView({ profile }: { profile: UserProfile }) {
                 <Button type="submit" disabled={saving}>{saving ? 'Salvando...' : editTarget ? 'Salvar Alterações' : 'Convidar'}</Button>
               </div>
             </form>
+          </Modal>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showDeleteConfirm && (
+          <Modal title="Confirmar Exclusão" onClose={() => setShowDeleteConfirm(null)}>
+            <div className="space-y-4">
+              <div className="p-4 bg-red-50 rounded-2xl flex items-start gap-3">
+                <AlertTriangle className="text-red-600 shrink-0" size={20} />
+                <div>
+                  <h4 className="text-sm font-bold text-red-900">Esta ação não pode ser desfeita</h4>
+                  <p className="text-xs text-red-700 mt-1">
+                    Você está prestes a excluir permanentemente o usuário <b>{showDeleteConfirm.displayName}</b>.
+                    Ele perderá o acesso imediato ao sistema.
+                  </p>
+                </div>
+              </div>
+              <p className="text-sm text-slate-600">Tem certeza que deseja prosseguir?</p>
+              <div className="flex justify-end gap-2 pt-2">
+                <Button variant="ghost" onClick={() => setShowDeleteConfirm(null)}>Cancelar</Button>
+                <Button variant="danger" onClick={handleDelete} disabled={saving}>
+                  {saving ? 'Excluindo...' : 'Sim, Excluir Usuário'}
+                </Button>
+              </div>
+            </div>
           </Modal>
         )}
       </AnimatePresence>
