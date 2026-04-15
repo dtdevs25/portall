@@ -130,7 +130,7 @@ function Modal({ title, onClose, children, size = 'md' }: {
   const widths = { md: 'max-w-md', lg: 'max-w-2xl', xl: 'max-w-4xl' };
   
   return createPortal(
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={onClose}>
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={onClose}>
       <motion.div 
         initial={{ scale: 0.95, opacity: 0 }} 
         animate={{ scale: 1, opacity: 1 }} 
@@ -1579,6 +1579,7 @@ function UsuariosView({ profile }: { profile: UserProfile }) {
   const [form, setForm] = useState({ email: '', displayName: '', role: 'viewer', companyId: '' });
   const [saving, setSaving] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<UserProfile | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
   useEffect(() => { fetchAll(); }, []);
   const fetchAll = async () => {
@@ -1607,7 +1608,7 @@ function UsuariosView({ profile }: { profile: UserProfile }) {
   const handleResendInvite = async (id: string) => {
     try {
       await api.post(`/users/${id}/resend-invite`);
-      alert('Link de acesso enviado com sucesso para o e-mail do usuário.');
+      setSuccessMsg('Link de acesso enviado com sucesso para o e-mail do usuário.');
     } catch (err: any) { alert(err.error || 'Erro ao reenviar.'); }
   };
 
@@ -1618,6 +1619,7 @@ function UsuariosView({ profile }: { profile: UserProfile }) {
       await api.delete(`/users/${showDeleteConfirm.uid || showDeleteConfirm.id}`); 
       fetchAll(); 
       setShowDeleteConfirm(null);
+      setSuccessMsg('Usuário excluído com sucesso!');
     } catch (err: any) { alert(err.error || 'Erro.'); } finally { setSaving(false); }
   };
 
@@ -1684,7 +1686,7 @@ function UsuariosView({ profile }: { profile: UserProfile }) {
                       >
                         <Pencil size={16} />
                       </button>
-                      {u.id !== profile.id && (
+                      {(u.uid || u.id) !== (profile.uid || profile.id) && (
                         <button
                           onClick={() => setShowDeleteConfirm(u)}
                           className="p-1.5 rounded-xl text-red-500 hover:text-red-700 hover:bg-red-50 transition-all"
@@ -1750,6 +1752,24 @@ function UsuariosView({ profile }: { profile: UserProfile }) {
                 <Button variant="ghost" onClick={() => setShowDeleteConfirm(null)}>Cancelar</Button>
                 <Button variant="danger" onClick={handleDelete} disabled={saving}>
                   {saving ? 'Excluindo...' : 'Sim, Excluir Usuário'}
+                </Button>
+              </div>
+            </div>
+          </Modal>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {successMsg && (
+          <Modal title="Sucesso" onClose={() => setSuccessMsg(null)}>
+            <div className="flex flex-col items-center py-6 text-center">
+              <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mb-4">
+                <CheckCircle2 size={32} />
+              </div>
+              <p className="text-slate-600 font-medium mb-6">{successMsg}</p>
+              <div className="w-full">
+                <Button onClick={() => setSuccessMsg(null)} className="w-full">
+                  Entendido
                 </Button>
               </div>
             </div>
