@@ -1242,7 +1242,10 @@ function CompaniesView({ profile }: { profile: UserProfile }) {
   };
 
   // Separar matrizes de filiais
-  const matrices = companies.filter(c => !c.parentId);
+  const matrices = companies
+    .filter(c => !c.parentId)
+    .filter(c => profile.role === 'master' || c.id === profile.companyId);
+
   const branches = companies.filter(c => !!c.parentId);
   const getBranches = (parentId: string) => branches.filter(b => b.parentId === parentId);
 
@@ -1268,8 +1271,17 @@ function CompaniesView({ profile }: { profile: UserProfile }) {
       {/* Company Cards */}
       <div className="space-y-4">
         {matrices.length === 0 && (
-          <Card><EmptyState icon={ShieldCheck} title="Nenhuma empresa cadastrada"
-            subtitle={profile.role === 'master' ? 'Clique em "Nova Empresa" para começar.' : 'Aguarde o master vincular você a uma empresa.'} /></Card>
+          <Card className="p-8">
+            <EmptyState icon={ShieldCheck} title="Nenhuma empresa cadastrada"
+              subtitle={profile.role === 'master' ? 'Você ainda não cadastrou nenhuma empresa contratante.' : 'Aguarde o master vincular você a uma empresa.'} />
+            {profile.role === 'master' && (
+              <div className="flex justify-center pt-4">
+                <Button onClick={() => setShowNewCompany(true)} size="md">
+                  <Plus size={18} /> Cadastrar Minha Primeira Empresa
+                </Button>
+              </div>
+            )}
+          </Card>
         )}
 
         {matrices.map(company => {
@@ -1343,23 +1355,27 @@ function CompaniesView({ profile }: { profile: UserProfile }) {
               {/* Branches List */}
               <div className="border-t border-slate-100 divide-y divide-slate-50">
                 {compBranches.length === 0 ? (
-                  <div className="flex items-center justify-between px-5 py-4 bg-blue-50/30 border-l-4 border-blue-500">
+                  <div className="flex flex-col sm:flex-row items-center justify-between px-5 py-5 bg-blue-50/40 border-l-4 border-blue-500 gap-4">
                     <div className="flex items-center gap-4">
-                      <div className="w-9 h-9 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-sm">
-                        <ShieldCheck size={18} />
+                      <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-md">
+                        <ShieldCheck size={20} />
                       </div>
                       <div>
                         <div className="flex items-center gap-2">
-                          <p className="text-sm font-bold text-slate-800">Sede Principal (Matriz)</p>
-                          <span className="text-[9px] font-black bg-blue-600 text-white px-2 py-0.5 rounded shadow-sm tracking-wide">
-                            UNIDADE AUTOMÁTICA
+                          <p className="text-sm font-bold text-slate-800">Unidade Sede Principal</p>
+                          <span className="text-[9px] font-black bg-blue-600 text-white px-2 py-0.5 rounded shadow-sm tracking-wide uppercase">
+                            Matriz Automática
                           </span>
                         </div>
                         <p className="text-[11px] text-slate-500 font-mono mt-0.5 tracking-tight">
-                          CNPJ: {maskCNPJ(company.cnpj || '')}
+                          CNPJ da Sede: {maskCNPJ(company.cnpj || '')}
                         </p>
                       </div>
                     </div>
+                    <Button variant="ghost" size="sm" className="text-blue-600 bg-white border border-blue-100 hover:bg-blue-50 shadow-sm"
+                      onClick={() => { setBranchForm({ name: '', cnpj: '' }); setShowBranchFor(company); }}>
+                      <Plus size={14} /> Cadastrar Nova Filial
+                    </Button>
                   </div>
                 ) : (
                   compBranches.map(branch => {
