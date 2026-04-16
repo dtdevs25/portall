@@ -1261,7 +1261,7 @@ function CompaniesView({ profile }: { profile: UserProfile }) {
               : 'Visualize suas empresas e cadastre filiais.'}
           </p>
         </div>
-        {profile.role === 'master' && (
+        {(profile.role === 'master' || profile.role === 'admin') && (
           <Button onClick={() => setShowNewCompany(true)}>
             <Plus size={16} /> Nova Empresa
           </Button>
@@ -1274,7 +1274,7 @@ function CompaniesView({ profile }: { profile: UserProfile }) {
           <Card className="p-8">
             <EmptyState icon={ShieldCheck} title="Nenhuma empresa cadastrada"
               subtitle={profile.role === 'master' ? 'Você ainda não cadastrou nenhuma empresa contratante.' : 'Aguarde o master vincular você a uma empresa.'} />
-            {profile.role === 'master' && (
+            {(profile.role === 'master' || profile.role === 'admin') && (
               <div className="flex justify-center pt-4">
                 <Button onClick={() => setShowNewCompany(true)} size="md">
                   <Plus size={18} /> Cadastrar Minha Primeira Empresa
