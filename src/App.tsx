@@ -343,7 +343,7 @@ function Sidebar({ activeTab, setActiveTab, profile, collapsed, setCollapsed }: 
     <motion.aside 
       animate={{ width: collapsed ? 80 : 280 }}
       transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-      className="relative h-full bg-slate-900 text-white shrink-0 z-50 group border-r border-white/5 shadow-2xl shadow-slate-900/50 overflow-hidden"
+      className="relative h-full bg-slate-900 text-white shrink-0 z-50 group border-r border-white/5 shadow-2xl shadow-slate-900/50"
     >
       {/* Collapse toggle (The Bubble) */}
       <button 
@@ -1847,7 +1847,7 @@ function UsuariosView({ profile }: { profile: UserProfile }) {
           <table className="w-full">
             <thead>
               <tr className="border-b border-slate-100">
-                {['Usuário', 'E-mail', 'Perfil', 'Empresa', ''].map(h => (
+                {['Usuário', 'E-mail', 'Perfil', 'Empresa', 'Unidades', ''].map(h => (
                   <th key={h} className="text-left px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider">{h}</th>
                 ))}
               </tr>
@@ -1876,14 +1876,25 @@ function UsuariosView({ profile }: { profile: UserProfile }) {
                   </td>
                   <td className="px-4 py-3 text-sm text-slate-600">
                     {getCompanyName(user.companyId)}
+                  </td>
+                  <td className="px-4 py-3">
                     {user.manageAllBranches ? (
-                      <div className="text-[10px] text-blue-600 font-bold">Todas as filiais</div>
+                      <span className="text-[10px] font-bold bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full uppercase">Todas</span>
                     ) : (
-                      user.managedCompanyIds && user.managedCompanyIds.length > 0 && (
-                        <div className="text-[10px] text-slate-400 mt-0.5">
-                          {user.managedCompanyIds.length} unidades sel.
-                        </div>
-                      )
+                      <div className="flex flex-wrap gap-1">
+                        {(user.managedCompanyIds || []).length > 0 ? (
+                          user.managedCompanyIds?.map(id => {
+                            const name = companies.find(c => c.id === id)?.name;
+                            return name ? (
+                              <span key={id} className="text-[9px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded border border-slate-200">
+                                {name}
+                              </span>
+                            ) : null;
+                          })
+                        ) : (
+                          <span className="text-[10px] text-slate-400 italic">Nenhuma</span>
+                        )}
+                      </div>
                     )}
                   </td>
                   <td className="px-4 py-3">
