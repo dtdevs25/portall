@@ -328,24 +328,22 @@ function Sidebar({ activeTab, setActiveTab, profile, collapsed, setCollapsed }: 
   activeTab: TabId; setActiveTab: (t: TabId) => void;
   profile: UserProfile; collapsed: boolean; setCollapsed: (v: boolean) => void;
 }) {
-  const items: { id: TabId; label: string; icon: any; roles: string[]; category: 'NAVEGAÇÃO' | 'CADASTROS' | 'CONFIGURAÇÕES' }[] = [
-    { id: 'portaria',        label: 'Portaria',           icon: Home,        roles: ['master','admin','viewer'], category: 'NAVEGAÇÃO' },
-    { id: 'pessoas',         label: 'Visitantes e Prestadores', icon: Users, roles: ['master','admin'],          category: 'NAVEGAÇÃO' },
-    { id: 'empresas_terceiro',label:'Provedores',           icon: Building2,   roles: ['master','admin'],          category: 'CADASTROS' },
-    { id: 'treinamentos',    label: 'Treinamentos',         icon: BookOpen,   roles: ['master','admin'],          category: 'CADASTROS' },
-    { id: 'companies',       label: 'Empresas',             icon: ShieldCheck, roles: ['master', 'admin'],          category: 'CONFIGURAÇÕES' },
-    { id: 'usuarios',        label: 'Usuários do Sistema',  icon: UserCog,     roles: ['master','admin'],          category: 'CONFIGURAÇÕES' },
+  const items: { id: TabId; label: string; icon: any; roles: string[] }[] = [
+    { id: 'portaria',        label: 'Portaria',           icon: Home,        roles: ['master','admin','viewer'] },
+    { id: 'pessoas',         label: 'Visitantes e Prestadores', icon: Users, roles: ['master','admin'] },
+    { id: 'empresas_terceiro',label:'Provedores',           icon: Building2,   roles: ['master','admin'] },
+    { id: 'treinamentos',    label: 'Treinamentos',         icon: BookOpen,   roles: ['master','admin'] },
+    { id: 'companies',       label: 'Empresas',             icon: ShieldCheck, roles: ['master', 'admin'] },
+    { id: 'usuarios',        label: 'Usuários do Sistema',  icon: UserCog,     roles: ['master','admin'] },
   ];
 
   const visible = items.filter(i => i.roles.includes(profile.role));
-
-  const categories = ['NAVEGAÇÃO', 'CADASTROS', 'CONFIGURAÇÕES'] as const;
 
   return (
     <motion.aside 
       animate={{ width: collapsed ? 80 : 280 }}
       transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-      className="relative h-full bg-slate-900 text-white shrink-0 z-20 group border-r border-white/5 shadow-2xl shadow-slate-900/50"
+      className="relative h-full bg-slate-900 text-white shrink-0 z-20 group border-r border-white/5 shadow-2xl shadow-slate-900/50 overflow-hidden"
     >
       {/* Collapse toggle (The Bubble) */}
       <button 
@@ -358,67 +356,20 @@ function Sidebar({ activeTab, setActiveTab, profile, collapsed, setCollapsed }: 
       <div className="flex flex-col h-full overflow-hidden">
         {/* Nav */}
         <nav className="flex-1 px-3 py-6 space-y-6 overflow-y-auto custom-scrollbar">
-          {categories.map(cat => {
-            const catItems = visible.filter(i => i.category === cat);
-            if (catItems.length === 0) return null;
-            
-            return (
-              <div key={cat} className="space-y-1">
-                <p className={cn(
-                  "px-4 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] transition-opacity duration-300 mb-2",
-                  collapsed ? "opacity-0" : "opacity-100"
-                )}>
-                  {cat}
-                </p>
-                {catItems.map(item => (
-                  <button key={item.id} onClick={() => setActiveTab(item.id)}
-                    className={cn(
-                      'w-full flex items-center gap-3 px-3 py-3 rounded-2xl text-sm font-semibold transition-all relative group/item',
-                      activeTab === item.id
-                        ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30'
-                        : 'text-slate-400 hover:bg-white/5 hover:text-slate-100',
-                      collapsed && 'justify-center'
-                    )}>
-                    <item.icon size={20} className={cn("transition-transform shrink-0", activeTab === item.id ? "scale-110" : "group-hover/item:scale-110")} />
-                    
-                    {!collapsed && (
-                      <motion.span initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} className="truncate">
-                        {item.label}
-                      </motion.span>
-                    )}
-                    
-                    {collapsed && activeTab === item.id && (
-                      <div className="absolute left-0 w-1 h-6 bg-white rounded-r-full" />
-                    )}
-                  </button>
-                ))}
-              </div>
-            );
-          })}
+          {visible.map(item => (
+            <button key={item.id} onClick={() => setActiveTab(item.id)}
+              className={cn(
+                'w-full flex items-center gap-3 px-3 py-3 rounded-2xl text-sm font-semibold transition-all relative group/item',
+                activeTab === item.id
+                  ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30'
+                  : 'text-slate-400 hover:bg-white/5 hover:text-slate-100',
+                collapsed && 'justify-center'
+              )}>
+              <item.icon size={20} />
+              {!collapsed && <span>{item.label}</span>}
+            </button>
+          ))}
         </nav>
-
-        {/* User Footer - Just the name */}
-        <div className="p-4 bg-black/40 border-t border-white/5">
-          <div className={cn("flex items-center gap-3", collapsed && "justify-center")}>
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-slate-800 to-slate-900 flex items-center justify-center text-xs font-black text-blue-400 border border-white/10 shrink-0">
-              {profile.displayName?.substring(0,2).toUpperCase()}
-            </div>
-            {!collapsed && (
-              <motion.div 
-                initial={{ opacity: 0 }} 
-                animate={{ opacity: 1 }}
-                className="flex-1 min-w-0"
-              >
-                <p className="text-[11px] font-black text-slate-200 truncate uppercase tracking-wider">
-                  {profile.displayName}
-                </p>
-                <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mt-0.5">
-                  Conectado
-                </p>
-              </motion.div>
-            )}
-          </div>
-        </div>
       </div>
     </motion.aside>
 
@@ -661,6 +612,7 @@ const emptyPessoaForm = (): PessoaForm => ({
   tipoAcesso: 'visitante', foto: '', nomeCompleto: '', documento: '',
   empresaOrigemId: '', responsavelInterno: '', celularAutorizado: false,
   notebookAutorizado: false, liberadoAte: '', descricaoAtividade: '',
+  atividadeId: '',
   asoDataRealizacao: '', epiObrigatorio: false, epiDescricao: '',
   treinamentos: [],
   companyId: '',
@@ -726,11 +678,29 @@ function PessoasView({ profile }: { profile: UserProfile }) {
     e.preventDefault();
     setSaving(true);
     try {
-      await api.post('/pessoas', form);
-      setShowForm(false);
+      const payload = { ...form };
+
+      // Regras de cadastro
+      if (profile.role === 'admin') {
+        payload.role = 'viewer'; // Administradores só podem criar visualizadores
+        payload.companyId = form.companyId || profile.companyId; // Vincular à empresa do admin
+      }
+
+      if (editTarget) {
+        await api.put(`/users/${editTarget.uid || editTarget.id}`, payload);
+      } else {
+        await api.post('/users', payload);
+      }
+
       fetchAll();
-    } catch (err: any) { alert(err.error || 'Erro ao salvar.'); }
-    finally { setSaving(false); }
+      setShowForm(false);
+      setEditTarget(null);
+      setForm({ email: '', displayName: '', role: 'viewer', companyId: '' });
+    } catch (err: any) {
+      alert(err.error || 'Erro ao salvar.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleDelete = async (id: string) => {
@@ -1143,7 +1113,7 @@ function TreinamentosView({ profile }: { profile: UserProfile }) {
 function CompaniesView({ profile }: { profile: UserProfile }) {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [allAdmins, setAllAdmins] = useState<UserProfile[]>([]);
-  const [linkedAdmins, setLinkedAdmins] = useState<Record<string, UserProfile[]>>({});
+  const [linkedAdmins, setLinkedAdmins] = useState<Record<string, UserProfile>>({});
 
   // Modals
   const [showNewCompany, setShowNewCompany] = useState(false);
@@ -1341,7 +1311,7 @@ function CompaniesView({ profile }: { profile: UserProfile }) {
                       Administradores
                       {linked.length > 0 && (
                         <span className="ml-1 bg-purple-600 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full">
-                          {linked.length}
+                                                   {linked.length}
                         </span>
                       )}
                     </button>
@@ -1567,215 +1537,13 @@ function CompaniesView({ profile }: { profile: UserProfile }) {
   );
 }
 
+// ─── Atividades View ──────────────────────────────────────────────────────────
 
-
-// ─── Usuários View ────────────────────────────────────────────────────────────
-
-function UsuariosView({ profile }: { profile: UserProfile }) {
-  const [users, setUsers] = useState<UserProfile[]>([]);
-  const [companies, setCompanies] = useState<Company[]>([]);
-  const [showForm, setShowForm] = useState(false);
-  const [editTarget, setEditTarget] = useState<UserProfile | null>(null);
-  const [form, setForm] = useState({ email: '', displayName: '', role: 'viewer', companyId: '' });
-  const [saving, setSaving] = useState(false);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState<UserProfile | null>(null);
-  const [successMsg, setSuccessMsg] = useState<string | null>(null);
-
-  useEffect(() => { fetchAll(); }, []);
-  const fetchAll = async () => {
-    try {
-      const [u, c] = await Promise.all([api.get<UserProfile[]>('/users'), api.get<Company[]>('/companies')]);
-      setUsers(u || []); setCompanies(c || []);
-    } catch {}
-  };
-
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault(); setSaving(true);
-    try {
-      const payload = { ...form };
-      if (profile.role === 'admin') payload.companyId = form.companyId || profile.companyId;
-
-      if (editTarget) {
-        await api.put(`/users/${editTarget.uid || editTarget.id}`, payload);
-      } else {
-        await api.post('/users', payload);
-      }
-      
-      fetchAll(); setShowForm(false); setEditTarget(null); setForm({ email: '', displayName: '', role: 'viewer', companyId: '' });
-    } catch (err: any) { alert(err.error || 'Erro.'); } finally { setSaving(false); }
-  };
-
-  const handleResendInvite = async (id: string) => {
-    try {
-      await api.post(`/users/${id}/resend-invite`);
-      setSuccessMsg('Link de acesso enviado com sucesso para o e-mail do usuário.');
-    } catch (err: any) { alert(err.error || 'Erro ao reenviar.'); }
-  };
-
-  const handleDelete = async () => {
-    if (!showDeleteConfirm) return;
-    setSaving(true);
-    try { 
-      await api.delete(`/users/${showDeleteConfirm.uid || showDeleteConfirm.id}`); 
-      fetchAll(); 
-      setShowDeleteConfirm(null);
-      setSuccessMsg('Usuário excluído com sucesso!');
-    } catch (err: any) { alert(err.error || 'Erro.'); } finally { setSaving(false); }
-  };
-
-  const roleLabel = (r: string) => ({ master: 'Master', admin: 'Administrador', viewer: 'Visualizador' }[r] || r);
-
+function AtividadesView({ profile }: { profile: UserProfile }) {
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Usuários</h1>
-          <p className="text-sm text-slate-500 mt-0.5">Convide usuários — eles receberão um e-mail para definir a senha.</p>
-        </div>
-        <Button onClick={() => setShowForm(true)}><Plus size={16} /> Convidar</Button>
-      </div>
-      <Card>
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-slate-100">
-                {['Usuário', 'Nível', 'Empresa', 'Status', 'Ações'].map(h => <th key={h} className={cn("px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider", h === 'Ações' ? 'text-right' : 'text-left')}>{h}</th>)}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-50">
-              {users.map(u => (
-                <tr key={u.uid || u.id} className="hover:bg-slate-50/50">
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-lg bg-slate-200 flex items-center justify-center text-xs font-bold text-slate-600">{u.displayName?.[0]?.toUpperCase()}</div>
-                      <div>
-                        <p className="text-sm font-semibold text-slate-900">{u.displayName}</p>
-                        <p className="text-xs text-slate-400">{u.email}</p>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className={cn('text-xs font-bold px-2.5 py-1 rounded-full',
-                      u.role === 'master' ? 'bg-purple-100 text-purple-700' : u.role === 'admin' ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-600')}>
-                      {roleLabel(u.role)}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-sm text-slate-600">{u.companyName || '—'}</td>
-                  <td className="px-4 py-3">
-                    <span className={cn('text-xs font-bold px-2 py-0.5 rounded-full', u.isActive ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700')}>
-                      {u.isActive ? 'Ativo' : 'Inativo'}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center justify-end gap-1">
-                      <button
-                        onClick={() => handleResendInvite(u.uid || u.id || '')}
-                        className="p-1.5 rounded-xl text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 transition-all"
-                        title="Reenviar Acesso"
-                      >
-                        <Mail size={16} />
-                      </button>
-                      <button
-                        onClick={() => {
-                          setForm({ email: u.email || '', displayName: u.displayName || '', role: u.role || 'viewer', companyId: u.companyId || '' });
-                          setEditTarget(u);
-                          setShowForm(true);
-                        }}
-                        className="p-1.5 rounded-xl text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-all"
-                        title="Editar Usuário"
-                      >
-                        <Pencil size={16} />
-                      </button>
-                      {(u.uid || u.id) !== (profile.uid || profile.id) && (
-                        <button
-                          onClick={() => setShowDeleteConfirm(u)}
-                          className="p-1.5 rounded-xl text-red-500 hover:text-red-700 hover:bg-red-50 transition-all"
-                          title="Excluir Usuário"
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {users.length === 0 && <EmptyState icon={UserCog} title="Nenhum usuário encontrado" />}
-        </div>
-      </Card>
-      <AnimatePresence>
-        {showForm && (
-          <Modal title={editTarget ? `Editar Usuário — ${editTarget.displayName}` : "Convidar Usuário"} onClose={() => { setShowForm(false); setEditTarget(null); }}>
-            <form onSubmit={handleSave} className="space-y-4">
-              <Input label="Nome" value={form.displayName} onChange={v => setForm(f => ({ ...f, displayName: v }))} required />
-              <Input label="E-mail" type="email" value={form.email} onChange={v => setForm(f => ({ ...f, email: v }))} required />
-              <Select label="Nível de Acesso" value={form.role} onChange={v => setForm(f => ({ ...f, role: v }))}>
-                <option value="viewer">Visualizador (Portaria)</option>
-                <option value="admin">Administrador</option>
-                {profile.role === 'master' && <option value="master">Master</option>}
-              </Select>
-              {(profile.role === 'master' || (profile.role === 'admin' && form.role !== 'master')) && (
-                <Select label="Empresa" value={form.companyId} onChange={v => setForm(f => ({ ...f, companyId: v }))} required>
-                  <CompanySelectOptions companies={companies} />
-                </Select>
-              )}
-              <div className="p-3 bg-blue-50 rounded-xl flex items-start gap-2 text-xs text-blue-700">
-                <Bell size={14} className="mt-0.5 shrink-0" />
-                O usuário receberá um e-mail com link para definir sua senha de acesso.
-              </div>
-              <div className="flex justify-end gap-2 pt-2">
-                <Button variant="ghost" onClick={() => { setShowForm(false); setEditTarget(null); }}>Cancelar</Button>
-                <Button type="submit" disabled={saving}>{saving ? 'Salvando...' : editTarget ? 'Salvar Alterações' : 'Convidar'}</Button>
-              </div>
-            </form>
-          </Modal>
-        )}
-      </AnimatePresence>
-
-      <AnimatePresence>
-        {showDeleteConfirm && (
-          <Modal title="Confirmar Exclusão" onClose={() => setShowDeleteConfirm(null)}>
-            <div className="space-y-4">
-              <div className="p-4 bg-red-50 rounded-2xl flex items-start gap-3">
-                <AlertTriangle className="text-red-600 shrink-0" size={20} />
-                <div>
-                  <h4 className="text-sm font-bold text-red-900">Esta ação não pode ser desfeita</h4>
-                  <p className="text-xs text-red-700 mt-1">
-                    Você está prestes a excluir permanentemente o usuário <b>{showDeleteConfirm.displayName}</b>.
-                    Ele perderá o acesso imediato ao sistema.
-                  </p>
-                </div>
-              </div>
-              <p className="text-sm text-slate-600">Tem certeza que deseja prosseguir?</p>
-              <div className="flex justify-end gap-2 pt-2">
-                <Button variant="ghost" onClick={() => setShowDeleteConfirm(null)}>Cancelar</Button>
-                <Button variant="danger" onClick={handleDelete} disabled={saving}>
-                  {saving ? 'Excluindo...' : 'Sim, Excluir Usuário'}
-                </Button>
-              </div>
-            </div>
-          </Modal>
-        )}
-      </AnimatePresence>
-
-      <AnimatePresence>
-        {successMsg && (
-          <Modal title="Sucesso" onClose={() => setSuccessMsg(null)}>
-            <div className="flex flex-col items-center py-6 text-center">
-              <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mb-4">
-                <CheckCircle2 size={32} />
-              </div>
-              <p className="text-slate-600 font-medium mb-6">{successMsg}</p>
-              <div className="w-full">
-                <Button onClick={() => setSuccessMsg(null)} className="w-full">
-                  Entendido
-                </Button>
-              </div>
-            </div>
-          </Modal>
-        )}
-      </AnimatePresence>
+    <div className="p-4">
+      <h1 className="text-2xl font-bold text-slate-900">Atividades</h1>
+      <p className="text-sm text-slate-500 mt-2">Esta é a página de atividades. Em breve, mais funcionalidades serão adicionadas aqui.</p>
     </div>
   );
 }
@@ -1893,6 +1661,16 @@ export default function App() {
           </div>
         </main>
       </div>
+    </div>
+  );
+}
+
+function UsuariosView({ profile }: { profile: UserProfile }) {
+  return (
+    <div className="p-4">
+      <h1 className="text-2xl font-bold text-slate-900">Usuários do Sistema</h1>
+      <p className="text-sm text-slate-500 mt-2">Gerencie os usuários do sistema aqui.</p>
+      {/* Implementar funcionalidades de cadastro e gerenciamento de usuários */}
     </div>
   );
 }
