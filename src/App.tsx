@@ -1354,84 +1354,84 @@ function CompaniesView({ profile }: { profile: UserProfile }) {
 
               {/* Branches List */}
               <div className="border-t border-slate-100 divide-y divide-slate-50">
-                {compBranches.length === 0 ? (
-                  <div className="flex flex-col sm:flex-row items-center justify-between px-5 py-5 bg-blue-50/40 border-l-4 border-blue-500 gap-4">
-                    <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-md">
-                        <ShieldCheck size={20} />
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <p className="text-sm font-bold text-slate-800">Unidade Sede Principal</p>
-                          <span className="text-[9px] font-black bg-blue-600 text-white px-2 py-0.5 rounded shadow-sm tracking-wide uppercase">
-                            Matriz Automática
-                          </span>
-                        </div>
-                        <p className="text-[11px] text-slate-500 font-mono mt-0.5 tracking-tight">
-                          CNPJ da Sede: {maskCNPJ(company.cnpj || '')}
-                        </p>
-                      </div>
+                {/* Always show the Matrix/Headquarters row first */}
+                <div className="flex flex-col sm:flex-row items-center justify-between px-5 py-5 bg-blue-50/40 border-l-4 border-blue-500 gap-4">
+                  <div className="flex items-center gap-4">
+                    <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-md">
+                      <ShieldCheck size={20} />
                     </div>
-                    <Button variant="ghost" size="sm" className="text-blue-600 bg-white border border-blue-100 hover:bg-blue-50 shadow-sm"
-                      onClick={() => { setBranchForm({ name: '', cnpj: '' }); setShowBranchFor(company); }}>
-                      <Plus size={14} /> Cadastrar Nova Filial
-                    </Button>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-bold text-slate-800">Unidade Sede Principal</p>
+                        <span className="text-[9px] font-black bg-blue-600 text-white px-2 py-0.5 rounded shadow-sm tracking-wide uppercase">
+                          Matriz
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-500 font-mono mt-0.5 tracking-tight">
+                        CNPJ da Sede: {maskCNPJ(company.cnpj || '')}
+                      </p>
+                    </div>
                   </div>
-                ) : (
-                  compBranches.map(branch => {
-                    const isMatriz = branch.name.toLowerCase() === 'matriz';
-                    return (
-                      <div key={branch.id} className={cn(
-                        "flex items-center justify-between px-5 py-4 transition-all border-l-4",
-                        isMatriz ? "bg-blue-50/30 border-blue-500" : "bg-slate-50/40 border-slate-100 hover:bg-slate-50"
-                      )}>
-                        <div className="flex items-center gap-4">
-                          <div className={cn(
-                            "w-9 h-9 rounded-xl flex items-center justify-center shadow-sm transition-transform hover:scale-105",
-                            isMatriz ? "bg-blue-600 text-white" : "bg-white text-slate-400 border border-slate-200"
-                          )}>
-                            {isMatriz ? <ShieldCheck size={18} /> : <Building2 size={18} />}
-                          </div>
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <p className="text-sm font-bold text-slate-800">{branch.name}</p>
-                              {isMatriz ? (
-                                <span className="text-[9px] font-black bg-blue-600 text-white px-2 py-0.5 rounded shadow-sm tracking-wide">
-                                  UNIDADE SEDE
-                                </span>
-                              ) : (
-                                <span className="text-[9px] font-black text-slate-400 border border-slate-200 px-1.5 py-0.5 rounded uppercase">
-                                  Filial
-                                </span>
-                              )}
-                            </div>
-                            {branch.cnpj && (
-                              <p className="text-[11px] text-slate-500 font-mono mt-0.5 tracking-tight">
-                                CNPJ: {maskCNPJ(branch.cnpj)}
-                              </p>
+                  <Button variant="ghost" size="sm" className="text-blue-600 bg-white border border-blue-100 hover:bg-blue-50 shadow-sm"
+                    onClick={() => { setBranchForm({ name: '', cnpj: '' }); setShowBranchFor(company); }}>
+                    <Plus size={14} /> Cadastrar Nova Filial
+                  </Button>
+                </div>
+
+                {/* List registered branches */}
+                {compBranches.map(branch => {
+                  const isMatriz = branch.name.toLowerCase() === 'matriz';
+                  return (
+                    <div key={branch.id} className={cn(
+                      "flex items-center justify-between px-5 py-4 transition-all border-l-4",
+                      isMatriz ? "bg-blue-50/30 border-blue-500" : "bg-slate-50/40 border-slate-100 hover:bg-slate-50"
+                    )}>
+                      <div className="flex items-center gap-4">
+                        <div className={cn(
+                          "w-9 h-9 rounded-xl flex items-center justify-center shadow-sm transition-transform hover:scale-105",
+                          isMatriz ? "bg-blue-600 text-white" : "bg-white text-slate-400 border border-slate-200"
+                        )}>
+                          {isMatriz ? <ShieldCheck size={18} /> : <Building2 size={18} />}
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm font-bold text-slate-800">{branch.name}</p>
+                            {isMatriz ? (
+                              <span className="text-[9px] font-black bg-blue-600 text-white px-2 py-0.5 rounded shadow-sm tracking-wide">
+                                UNIDADE SEDE
+                              </span>
+                            ) : (
+                              <span className="text-[9px] font-black text-slate-400 border border-slate-200 px-1.5 py-0.5 rounded uppercase">
+                                Filial
+                              </span>
                             )}
                           </div>
-                        </div>
-                        <div className="flex items-center justify-end gap-1 group">
-                          <button
-                            onClick={() => { setBranchForm({ name: branch.name, cnpj: branch.cnpj || '' }); setEditTarget(branch); }}
-                            className="p-2 rounded-xl text-slate-300 hover:text-blue-600 hover:bg-blue-50 transition-all opacity-0 group-hover:opacity-100"
-                            title="Editar Unidade"
-                          >
-                            <UserCog size={14} />
-                          </button>
-                          <button
-                            onClick={() => handleDeleteCompany(branch.id)}
-                            className="p-2 rounded-xl text-slate-300 hover:text-red-500 hover:bg-red-50 transition-all opacity-0 group-hover:opacity-100"
-                            title="Excluir Unidade"
-                          >
-                            <Trash2 size={14} />
-                          </button>
+                          {branch.cnpj && (
+                            <p className="text-[11px] text-slate-500 font-mono mt-0.5 tracking-tight">
+                              CNPJ: {maskCNPJ(branch.cnpj)}
+                            </p>
+                          )}
                         </div>
                       </div>
-                    );
-                  })
-                )}
+                      <div className="flex items-center justify-end gap-1 group">
+                        <button
+                          onClick={() => { setBranchForm({ name: branch.name, cnpj: branch.cnpj || '' }); setEditTarget(branch); }}
+                          className="p-2 rounded-xl text-slate-300 hover:text-blue-600 hover:bg-blue-50 transition-all opacity-0 group-hover:opacity-100"
+                          title="Editar Unidade"
+                        >
+                          <UserCog size={14} />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteCompany(branch.id)}
+                          className="p-2 rounded-xl text-slate-300 hover:text-red-500 hover:bg-red-50 transition-all opacity-0 group-hover:opacity-100"
+                          title="Excluir Unidade"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </Card>
           );
@@ -1708,7 +1708,14 @@ function UsuariosView({ profile }: { profile: UserProfile }) {
   const [editTarget, setEditTarget] = useState<UserProfile | null>(null);
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState('');
-  const [form, setForm] = useState({ email: '', displayName: '', role: 'viewer', companyId: '', manageAllBranches: false });
+  const [form, setForm] = useState({ 
+    email: '', 
+    displayName: '', 
+    role: 'viewer', 
+    companyId: '', 
+    managedCompanyIds: [] as string[], 
+    manageAllBranches: false 
+  });
 
   useEffect(() => { fetchAll(); }, []);
 
@@ -1725,7 +1732,14 @@ function UsuariosView({ profile }: { profile: UserProfile }) {
 
   const openNew = () => {
     setEditTarget(null);
-    setForm({ email: '', displayName: '', role: 'viewer', companyId: profile.role === 'admin' ? (profile.companyId || '') : '' });
+    setForm({ 
+      email: '', 
+      displayName: '', 
+      role: 'viewer', 
+      companyId: profile.role === 'admin' ? (profile.companyId || '') : '', 
+      managedCompanyIds: [], 
+      manageAllBranches: false 
+    });
     setShowForm(true);
   };
 
@@ -1736,6 +1750,7 @@ function UsuariosView({ profile }: { profile: UserProfile }) {
       displayName: user.displayName || '', 
       role: user.role || 'viewer', 
       companyId: user.companyId || '',
+      managedCompanyIds: user.managedCompanyIds || [],
       manageAllBranches: user.manageAllBranches || false
     });
     setShowForm(true);
@@ -1758,7 +1773,14 @@ function UsuariosView({ profile }: { profile: UserProfile }) {
       fetchAll();
       setShowForm(false);
       setEditTarget(null);
-      setForm({ email: '', displayName: '', role: 'viewer', companyId: '', manageAllBranches: false });
+      setForm({ 
+        email: '', 
+        displayName: '', 
+        role: 'viewer', 
+        companyId: '', 
+        managedCompanyIds: [], 
+        manageAllBranches: false 
+      });
     } catch (err: any) {
       alert(err.error || 'Erro ao salvar.');
     } finally {
@@ -1854,7 +1876,15 @@ function UsuariosView({ profile }: { profile: UserProfile }) {
                   </td>
                   <td className="px-4 py-3 text-sm text-slate-600">
                     {getCompanyName(user.companyId)}
-                    {user.manageAllBranches && <div className="text-[10px] text-blue-600 font-bold">Todas as filiais</div>}
+                    {user.manageAllBranches ? (
+                      <div className="text-[10px] text-blue-600 font-bold">Todas as filiais</div>
+                    ) : (
+                      user.managedCompanyIds && user.managedCompanyIds.length > 0 && (
+                        <div className="text-[10px] text-slate-400 mt-0.5">
+                          {user.managedCompanyIds.length} unidades sel.
+                        </div>
+                      )
+                    )}
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-end gap-1">
@@ -1899,18 +1929,70 @@ function UsuariosView({ profile }: { profile: UserProfile }) {
                     <CompanySelectOptions companies={companies} />
                   </Select>
                   {form.role === 'admin' && (
-                    <Toggle label="Gerenciar todas as filiais desta empresa?" checked={form.manageAllBranches} onChange={v => setForm(f => ({ ...f, manageAllBranches: v }))} />
+                    <div className="space-y-3">
+                      <Toggle label="Gerenciar todas as filiais desta empresa?" checked={form.manageAllBranches} onChange={v => setForm(f => ({ ...f, manageAllBranches: v }))} />
+                      
+                      {!form.manageAllBranches && (
+                        <div className="p-4 bg-slate-50 rounded-2xl space-y-3">
+                          <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Selecionar Unidades Autorizadas</label>
+                          <div className="grid grid-cols-1 gap-2 max-h-40 overflow-y-auto pr-2 custom-scrollbar">
+                            {companies.filter(c => c.parentId === form.companyId || c.id === form.companyId).map(site => (
+                              <label key={site.id} className="flex items-center gap-3 p-2 bg-white rounded-xl border border-slate-100 hover:border-blue-200 transition-colors cursor-pointer group">
+                                <input 
+                                  type="checkbox" 
+                                  className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                                  checked={form.managedCompanyIds.includes(site.id)}
+                                  onChange={e => {
+                                    const ids = e.target.checked 
+                                      ? [...form.managedCompanyIds, site.id]
+                                      : form.managedCompanyIds.filter(id => id !== site.id);
+                                    setForm(f => ({ ...f, managedCompanyIds: ids }));
+                                  }}
+                                />
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-xs font-semibold text-slate-700 truncate">{site.name}</p>
+                                  <p className="text-[10px] text-slate-400 truncate">{site.parentId ? 'Filial' : 'Matriz'}</p>
+                                </div>
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   )}
                 </div>
               )}
 
               {profile.role === 'admin' && form.role === 'viewer' && (
-                <Select label="Filial / Unidade de Acesso" value={form.companyId} onChange={v => setForm(f => ({ ...f, companyId: v }))} required>
-                  <option value={profile.companyId || ''}>Matriz / Unidade Principal</option>
-                  {companies.filter(c => c.parentId === profile.companyId).map(branch => (
-                    <option key={branch.id} value={branch.id}>{branch.name}</option>
-                  ))}
-                </Select>
+                <div className="space-y-4">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Unidades Autorizadas para Visualizador</label>
+                  <div className="grid grid-cols-1 gap-2 max-h-52 overflow-y-auto pr-2 custom-scrollbar p-3 bg-slate-50 rounded-2xl">
+                    {/* Admin só pode dar acesso às unidades que ele mesmo gerencia */}
+                    {companies.filter(c => 
+                      profile.manageAllBranches 
+                        ? (c.id === profile.companyId || c.parentId === profile.companyId)
+                        : (profile.managedCompanyIds || []).includes(c.id)
+                    ).map(site => (
+                      <label key={site.id} className="flex items-center gap-3 p-2 bg-white rounded-xl border border-slate-100 hover:border-blue-200 transition-colors cursor-pointer group">
+                        <input 
+                          type="checkbox" 
+                          className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                          checked={form.managedCompanyIds.includes(site.id)}
+                          onChange={e => {
+                            const ids = e.target.checked 
+                              ? [...form.managedCompanyIds, site.id]
+                              : form.managedCompanyIds.filter(id => id !== site.id);
+                            setForm(f => ({ ...f, managedCompanyIds: ids }));
+                          }}
+                        />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-semibold text-slate-700 truncate">{site.name}</p>
+                          <p className="text-[10px] text-slate-400 truncate">{site.parentId ? 'Filial' : 'Matriz'}</p>
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+                </div>
               )}
               <div className="flex justify-end gap-3 pt-2">
                 <Button variant="ghost" onClick={() => setShowForm(false)}>Cancelar</Button>
