@@ -1119,6 +1119,7 @@ function CompaniesView({ profile }: { profile: UserProfile }) {
   const [showNewCompany, setShowNewCompany] = useState(false);
   const [showBranchFor, setShowBranchFor] = useState<Company | null>(null);   // parent company
   const [showAdminsFor, setShowAdminsFor] = useState<Company | null>(null);   // company managing admins
+  const [editTarget, setEditTarget] = useState<Company | null>(null);         // company/branch being edited
 
   // Forms
   const [companyForm, setCompanyForm] = useState({ name: '', cnpj: '' });
@@ -1666,11 +1667,201 @@ export default function App() {
 }
 
 function UsuariosView({ profile }: { profile: UserProfile }) {
+  const [users, setUsers] = useState<UserProfile[]>([]);
+  const [companies, setCompanies] = useState<Company[]>([]);
+  const [showForm, setShowForm] = useState(false);
+  const [editTarget, setEditTarget] = useState<UserProfile | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [search, setSearch] = useState('');
+  const [form, setForm] = useState({ email: '', displayName: '', role: 'viewer', companyId: '' });
+
+  useEffect(() => { fetchAll(); }, []);
+
+  const fetchAll = async () => {
+    try {
+      const [u, c] = await Promise.all([
+        api.get<UserProfile[]>('/users'),
+        api.get<Company[]>('/companies'),
+      ]);
+      setUsers(u || []);
+      setCompanies(c || []);
+    } catch {}
+  };
+
+  const openNew = () => {
+    setEditTarget(null);
+    setForm({ email: '', displayName: '', role: 'viewer', companyId: profile.role === 'admin' ? (profile.companyId || '') : '' });
+    setShowForm(true);
+  };
+
+  const openEdit = (user: UserProfile) => {
+    setEditTarget(user);
+    setForm({ email: user.email || '', displayName: user.displayName || '', role: user.role || 'viewer', companyId: user.companyId || '' });
+    setShowForm(true);
+  };
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      const payload = { ...form };
+      if (profile.role === 'admin') {
+        payload.role = 'viewer';
+        payload.companyId = profile.companyId || form.companyId;
+      }
+      if (editTarget) {
+        await api.put(`/users/${editTarget.uid || editTarget.id}`, payload);
+      } else {
+        await api.post('/users', payload);
+      }
+      fetchAll();
+      setShowForm(false);
+      setEditTarget(null);
+      setForm({ email: '', displayName: '', role: 'viewer', companyId: '' });
+    } catch (err: any) {
+      alert(err.error || 'Erro ao salvar.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async (user: UserProfile) => {
+    if (!confirm(`Deseja excluir o usuário ${user.displayName || user.email}?`)) return;
+    try {
+      await api.delete(`/users/${user.uid || user.id}`);
+      fetchAll();
+    } catch (err: any) { alert(err.error || 'Erro ao excluir.'); }
+  };
+
+  const roleLabel = (role: string) => {
+    if (role === 'master') return 'Master';
+    if (role === 'admin') return 'Administrador';
+    return 'Visualizador';
+  };
+
+  const roleColor = (role: string) => {
+    if (role === 'master') return 'bg-purple-100 text-purple-700';
+    if (role === 'admin') return 'bg-blue-100 text-blue-700';
+    return 'bg-slate-100 text-slate-600';
+  };
+
+  const getCompanyName = (companyId?: string) => {
+    if (!companyId) return '—';
+    return companies.find(c => c.id === companyId)?.name || '—';
+  };
+
+  const filtered = users.filter(u =>
+    !search ||
+    (u.displayName || '').toLowerCase().includes(search.toLowerCase()) ||
+    (u.email || '').toLowerCase().includes(search.toLowerCase())
+  );
+
+  const canInvite = profile.role === 'master' || profile.role === 'admin';
+  const canEditRole = profile.role === 'master';
+
   return (
-    <div className="p-4">
-      <h1 className="text-2xl font-bold text-slate-900">Usuários do Sistema</h1>
-      <p className="text-sm text-slate-500 mt-2">Gerencie os usuários do sistema aqui.</p>
-      {/* Implementar funcionalidades de cadastro e gerenciamento de usuários */}
+    <div className="max-w-5xl mx-auto space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">Usuários do Sistema</h1>
+          <p className="text-sm text-slate-500 mt-0.5">Gerencie os usuários e suas permissões de acesso.</p>
+        </div>
+        {canInvite && (
+          <Button onClick={openNew}><Plus size={16} /> Convidar Usuário</Button>
+        )}
+      </div>
+
+      {/* Search */}
+      <div className="relative">
+        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar por nome ou e-mail..."
+          className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-200 text-sm outline-none focus:ring-2 focus:ring-blue-500" />
+      </div>
+
+      {/* Table */}
+      <Card>
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-slate-100">
+                {['Usuário', 'E-mail', 'Perfil', 'Empresa', ''].map(h => (
+                  <th key={h} className="text-left px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider">{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-50">
+              {filtered.map(user => (
+                <tr key={user.uid || user.id} className="hover:bg-slate-50/50 transition-colors">
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-sm font-bold ${roleColor(user.role || 'viewer')}`}>
+                        {(user.displayName || user.email || '?')[0].toUpperCase()}
+                      </div>
+                      <p className="text-sm font-semibold text-slate-900">{user.displayName || '—'}</p>
+                    </div>
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-1.5 text-sm text-slate-500">
+                      <Mail size={13} className="text-slate-300" />
+                      {user.email}
+                    </div>
+                  </td>
+                  <td className="px-4 py-3">
+                    <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${roleColor(user.role || 'viewer')}`}>
+                      {roleLabel(user.role || 'viewer')}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-sm text-slate-600">{getCompanyName(user.companyId)}</td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center justify-end gap-1">
+                      {canInvite && (
+                        <Button variant="ghost" size="sm" onClick={() => openEdit(user)}><Pencil size={14} /></Button>
+                      )}
+                      {profile.role === 'master' && (user.uid || user.id) !== (profile.uid || profile.id) && (
+                        <Button variant="ghost" size="sm" onClick={() => handleDelete(user)}><Trash2 size={14} /></Button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {filtered.length === 0 && <EmptyState icon={UserCog} title="Nenhum usuário encontrado" subtitle="Convide usuários clicando em 'Convidar Usuário'." />}
+        </div>
+      </Card>
+
+      {/* Form Modal */}
+      <AnimatePresence>
+        {showForm && (
+          <Modal title={editTarget ? 'Editar Usuário' : 'Convidar Usuário'} onClose={() => setShowForm(false)}>
+            <form onSubmit={handleSave} className="space-y-4">
+              {!editTarget && (
+                <div className="p-3 bg-blue-50 rounded-xl text-xs text-blue-700 font-medium">
+                  ℹ️ Um e-mail de convite será enviado para o usuário definir sua senha.
+                </div>
+              )}
+              <Input label="Nome Completo" value={form.displayName} onChange={v => setForm(f => ({ ...f, displayName: v }))} required placeholder="Nome do usuário" />
+              <Input label="E-mail" type="email" value={form.email} onChange={v => setForm(f => ({ ...f, email: v }))} required placeholder="usuario@empresa.com" />
+              {canEditRole && (
+                <Select label="Perfil de Acesso" value={form.role} onChange={v => setForm(f => ({ ...f, role: v }))} required>
+                  <option value="viewer">Visualizador (Portaria)</option>
+                  <option value="admin">Administrador</option>
+                  {profile.role === 'master' && <option value="master">Master</option>}
+                </Select>
+              )}
+              {(profile.role === 'master' && form.role !== 'master') && (
+                <Select label="Empresa" value={form.companyId} onChange={v => setForm(f => ({ ...f, companyId: v }))} required>
+                  <CompanySelectOptions companies={companies} />
+                </Select>
+              )}
+              <div className="flex justify-end gap-3 pt-2">
+                <Button variant="ghost" onClick={() => setShowForm(false)}>Cancelar</Button>
+                <Button type="submit" disabled={saving}>{saving ? 'Salvando...' : editTarget ? 'Salvar Alterações' : 'Enviar Convite'}</Button>
+              </div>
+            </form>
+          </Modal>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
