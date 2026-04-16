@@ -343,7 +343,7 @@ function Sidebar({ activeTab, setActiveTab, profile, collapsed, setCollapsed }: 
     <motion.aside 
       animate={{ width: collapsed ? 80 : 280 }}
       transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-      className="relative h-full bg-slate-900 text-white shrink-0 z-20 group border-r border-white/5 shadow-2xl shadow-slate-900/50 overflow-hidden"
+      className="relative h-full bg-slate-900 text-white shrink-0 z-50 group border-r border-white/5 shadow-2xl shadow-slate-900/50 overflow-hidden"
     >
       {/* Collapse toggle (The Bubble) */}
       <button 
@@ -1341,9 +1341,28 @@ function CompaniesView({ profile }: { profile: UserProfile }) {
               </div>
 
               {/* Branches List */}
-              {compBranches.length > 0 && (
-                <div className="border-t border-slate-100 divide-y divide-slate-50">
-                  {compBranches.map(branch => {
+              <div className="border-t border-slate-100 divide-y divide-slate-50">
+                {compBranches.length === 0 ? (
+                  <div className="flex items-center justify-between px-5 py-4 bg-blue-50/30 border-l-4 border-blue-500">
+                    <div className="flex items-center gap-4">
+                      <div className="w-9 h-9 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-sm">
+                        <ShieldCheck size={18} />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-bold text-slate-800">Sede Principal (Matriz)</p>
+                          <span className="text-[9px] font-black bg-blue-600 text-white px-2 py-0.5 rounded shadow-sm tracking-wide">
+                            UNIDADE AUTOMÁTICA
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-slate-500 font-mono mt-0.5 tracking-tight">
+                          CNPJ: {maskCNPJ(company.cnpj || '')}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  compBranches.map(branch => {
                     const isMatriz = branch.name.toLowerCase() === 'matriz';
                     return (
                       <div key={branch.id} className={cn(
@@ -1395,9 +1414,9 @@ function CompaniesView({ profile }: { profile: UserProfile }) {
                         </div>
                       </div>
                     );
-                  })}
-                </div>
-              )}
+                  })
+                )}
+              </div>
             </Card>
           );
         })}
@@ -1673,7 +1692,7 @@ function UsuariosView({ profile }: { profile: UserProfile }) {
   const [editTarget, setEditTarget] = useState<UserProfile | null>(null);
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState('');
-  const [form, setForm] = useState({ email: '', displayName: '', role: 'viewer', companyId: '' });
+  const [form, setForm] = useState({ email: '', displayName: '', role: 'viewer', companyId: '', manageAllBranches: false });
 
   useEffect(() => { fetchAll(); }, []);
 
@@ -1696,7 +1715,13 @@ function UsuariosView({ profile }: { profile: UserProfile }) {
 
   const openEdit = (user: UserProfile) => {
     setEditTarget(user);
-    setForm({ email: user.email || '', displayName: user.displayName || '', role: user.role || 'viewer', companyId: user.companyId || '' });
+    setForm({ 
+      email: user.email || '', 
+      displayName: user.displayName || '', 
+      role: user.role || 'viewer', 
+      companyId: user.companyId || '',
+      manageAllBranches: user.manageAllBranches || false
+    });
     setShowForm(true);
   };
 
@@ -1717,7 +1742,7 @@ function UsuariosView({ profile }: { profile: UserProfile }) {
       fetchAll();
       setShowForm(false);
       setEditTarget(null);
-      setForm({ email: '', displayName: '', role: 'viewer', companyId: '' });
+      setForm({ email: '', displayName: '', role: 'viewer', companyId: '', manageAllBranches: false });
     } catch (err: any) {
       alert(err.error || 'Erro ao salvar.');
     } finally {
@@ -1811,7 +1836,10 @@ function UsuariosView({ profile }: { profile: UserProfile }) {
                       {roleLabel(user.role || 'viewer')}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-sm text-slate-600">{getCompanyName(user.companyId)}</td>
+                  <td className="px-4 py-3 text-sm text-slate-600">
+                    {getCompanyName(user.companyId)}
+                    {user.manageAllBranches && <div className="text-[10px] text-blue-600 font-bold">Todas as filiais</div>}
+                  </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-end gap-1">
                       {canInvite && (
@@ -1850,8 +1878,22 @@ function UsuariosView({ profile }: { profile: UserProfile }) {
                 </Select>
               )}
               {(profile.role === 'master' && form.role !== 'master') && (
-                <Select label="Empresa" value={form.companyId} onChange={v => setForm(f => ({ ...f, companyId: v }))} required>
-                  <CompanySelectOptions companies={companies} />
+                <div className="space-y-4">
+                  <Select label="Empresa Responsável" value={form.companyId} onChange={v => setForm(f => ({ ...f, companyId: v }))} required>
+                    <CompanySelectOptions companies={companies} />
+                  </Select>
+                  {form.role === 'admin' && (
+                    <Toggle label="Gerenciar todas as filiais desta empresa?" checked={form.manageAllBranches} onChange={v => setForm(f => ({ ...f, manageAllBranches: v }))} />
+                  )}
+                </div>
+              )}
+
+              {profile.role === 'admin' && form.role === 'viewer' && (
+                <Select label="Filial / Unidade de Acesso" value={form.companyId} onChange={v => setForm(f => ({ ...f, companyId: v }))} required>
+                  <option value={profile.companyId || ''}>Matriz / Unidade Principal</option>
+                  {companies.filter(c => c.parentId === profile.companyId).map(branch => (
+                    <option key={branch.id} value={branch.id}>{branch.name}</option>
+                  ))}
                 </Select>
               )}
               <div className="flex justify-end gap-3 pt-2">

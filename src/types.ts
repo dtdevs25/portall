@@ -18,6 +18,7 @@ export interface UserProfile {
   displayName: string;
   role: UserRole;
   companyId?: string;
+  manageAllBranches?: boolean;
   companyName?: string;
   isActive: boolean;
   createdAt: string;
