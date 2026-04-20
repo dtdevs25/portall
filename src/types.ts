@@ -76,7 +76,8 @@ export interface Pessoa {
   celularAutorizado: boolean;
   celularImei?: string;
   notebookAutorizado: boolean;
-  notebookInfo?: string;
+  notebookMarca?: string;
+  notebookPatrimonio?: string;
   liberadoAte?: string; // Data ISO
   descricaoAtividade?: string;
   

@@ -119,6 +119,73 @@ function Select({ label, value, onChange, children, required }: {
   );
 }
 
+function SearchableSelect({ value, onChange, options, placeholder, required }: {
+  value: string; onChange: (v: string) => void;
+  options: { value: string; label: string }[];
+  placeholder?: string; required?: boolean;
+}) {
+  const [search, setSearch] = useState('');
+  const [isOpen, setIsOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) setIsOpen(false);
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
+
+  const selectedLabel = options.find(o => o.value === value)?.label || '';
+  const filtered = options.filter(o => o.label.toLowerCase().includes(search.toLowerCase()));
+
+  return (
+    <div ref={containerRef} className="relative">
+      <div className="relative">
+        <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 flex" />
+        <input 
+          placeholder={selectedLabel || placeholder}
+          value={isOpen ? search : selectedLabel}
+          onFocus={() => { setIsOpen(true); setSearch(''); }}
+          onChange={e => setSearch(e.target.value)}
+          className="w-full pl-8 pr-3 py-2.5 rounded-lg border border-slate-200 bg-white text-sm text-slate-900 outline-none focus:ring-2 focus:ring-blue-500 truncate"
+          readOnly={!isOpen && !!selectedLabel}
+        />
+        {required && !value && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-red-500">*</span>}
+      </div>
+      
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div 
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="absolute z-[100] w-full mt-1 bg-white rounded-xl border border-slate-200 shadow-xl max-h-48 overflow-y-auto no-scrollbar"
+          >
+            {filtered.length === 0 ? (
+              <div className="px-3 py-4 text-center text-xs text-slate-400">Nenhum resultado</div>
+            ) : (
+              filtered.map(o => (
+                <button 
+                  key={o.value} 
+                  type="button"
+                  onClick={() => { onChange(o.value); setIsOpen(false); setSearch(''); }}
+                  className={cn(
+                    "w-full text-left px-3 py-2 text-sm transition-colors hover:bg-blue-50",
+                    o.value === value ? "text-blue-600 font-bold bg-blue-50/50" : "text-slate-700"
+                  )}
+                >
+                  {o.label}
+                </button>
+              ))
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
 function Toggle({ label, checked, onChange }: { label: string; checked: boolean; onChange: (v: boolean) => void }) {
   return (
     <label className="flex items-center justify-between cursor-pointer gap-3">
@@ -640,7 +707,8 @@ function PhotoPicker({ value, onChange }: { value: string; onChange: (v: string)
 type PessoaForm = {
   tipoAcesso: string; foto: string; nomeCompleto: string; documento: string;
   empresaOrigemId: string; responsavelInterno: string; celularAutorizado: boolean;
-  celularImei: string; notebookAutorizado: boolean; notebookInfo: string;
+  celularImei: string; notebookAutorizado: boolean; notebookMarca: string; 
+  notebookPatrimonio: string;
   liberadoAte: string; descricaoAtividade: string;
   atividadeId: string; asoDataRealizacao: string; epiObrigatorio: boolean; epiDescricao: string;
   treinamentos: { treinamentoId: string; dataRealizacao: string }[];
@@ -650,7 +718,7 @@ type PessoaForm = {
 const emptyPessoaForm = (): PessoaForm => ({
   tipoAcesso: 'visitante', foto: '', nomeCompleto: '', documento: '',
   empresaOrigemId: '', responsavelInterno: '', celularAutorizado: false,
-  celularImei: '', notebookAutorizado: false, notebookInfo: '',
+  celularImei: '', notebookAutorizado: false, notebookMarca: '', notebookPatrimonio: '',
   liberadoAte: '', descricaoAtividade: '',
   atividadeId: '',
   asoDataRealizacao: '', epiObrigatorio: false, epiDescricao: '',
@@ -758,7 +826,8 @@ function PessoasView({ profile }: { profile: UserProfile }) {
       celularAutorizado: p.celularAutorizado,
       celularImei: p.celularImei || '',
       notebookAutorizado: p.notebookAutorizado,
-      notebookInfo: p.notebookInfo || '',
+      notebookMarca: p.notebookMarca || '',
+      notebookPatrimonio: p.notebookPatrimonio || '',
       liberadoAte: p.liberadoAte ? p.liberadoAte.split('T')[0] : '',
       descricaoAtividade: p.descricaoAtividade || '',
       asoDataRealizacao: p.asoDataRealizacao || '',
@@ -910,51 +979,28 @@ function PessoasView({ profile }: { profile: UserProfile }) {
                   />
                 </div>
 
-                <div className="space-y-1">
+                <div className="space-y-1 relative">
                   <label className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Empresa de Origem</label>
-                  <div className="relative">
-                    <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
-                    <input 
-                      placeholder="Pesquisar empresa..."
-                      value={origSearch}
-                      onChange={e => setOrigSearch(e.target.value)}
-                      className="w-full pl-8 pr-3 py-2 rounded-lg border border-slate-100 bg-slate-50 text-[11px] outline-none mb-1"
-                    />
-                    <select 
-                      value={form.empresaOrigemId} 
-                      onChange={e => setForm(f => ({ ...f, empresaOrigemId: e.target.value }))}
-                      className="w-full px-3 py-2.5 rounded-lg border border-slate-200 bg-white text-sm text-slate-900 outline-none"
-                    >
-                      <option value="">— Selecione —</option>
-                      {empresasTerceiro
-                        .filter(e => !origSearch || e.name.toLowerCase().includes(origSearch.toLowerCase()))
-                        .map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
-                    </select>
-                  </div>
+                  <SearchableSelect 
+                    placeholder="Pesquisar empresa..."
+                    value={form.empresaOrigemId}
+                    onChange={v => setForm(f => ({ ...f, empresaOrigemId: v }))}
+                    options={empresasTerceiro.map(e => ({ value: e.id, label: e.name }))}
+                  />
                 </div>
 
                 <Input label="Responsável Interno" value={form.responsavelInterno} onChange={v => setForm(f => ({ ...f, responsavelInterno: v }))} required placeholder="Nome do acompanhante" />
                 
                 {(profile.role === 'master' || profile.role === 'admin') && (
-                  <div className="space-y-1">
+                  <div className="space-y-1 relative">
                     <label className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Empresa de Acesso (Unidade)</label>
-                    <div className="relative">
-                      <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
-                      <input 
-                        placeholder="Pesquisar unidade..."
-                        value={coSearch}
-                        onChange={e => setCoSearch(e.target.value)}
-                        className="w-full pl-8 pr-3 py-2 rounded-lg border border-slate-100 bg-slate-50 text-[11px] outline-none mb-1"
-                      />
-                      <select 
-                        value={form.companyId} 
-                        onChange={e => setForm(f => ({ ...f, companyId: e.target.value }))} 
-                        required
-                        className="w-full px-3 py-2.5 rounded-lg border border-slate-200 bg-white text-sm text-slate-900 outline-none"
-                      >
-                        <CompanySelectOptions companies={companies.filter(c => !coSearch || c.name.toLowerCase().includes(coSearch.toLowerCase()))} />
-                      </select>
-                    </div>
+                    <SearchableSelect 
+                      placeholder="Pesquisar unidade..."
+                      value={form.companyId}
+                      onChange={v => setForm(f => ({ ...f, companyId: v }))}
+                      options={companies.map(c => ({ value: c.id, label: c.name }))}
+                      required
+                    />
                   </div>
                 )}
                 <Input label="Último ASO (Calculado)" type="date" value={form.liberadoAte} onChange={v => setForm(f => ({ ...f, liberadoAte: v }))} hint="Data de expiração do acesso" />
@@ -967,13 +1013,34 @@ function PessoasView({ profile }: { profile: UserProfile }) {
                 <div className="space-y-3">
                   <Toggle label="Celular autorizado" checked={form.celularAutorizado} onChange={v => setForm(f => ({ ...f, celularAutorizado: v, celularImei: v ? f.celularImei : '' }))} />
                   {form.celularAutorizado && (
-                    <Input label="IMEI do Celular" value={form.celularImei} onChange={v => setForm(f => ({ ...f, celularImei: v }))} placeholder="Ex: 354678..." />
+                    <Input 
+                      label="IMEI do Celular (15 dígitos)" 
+                      value={form.celularImei} 
+                      onChange={v => {
+                        const numeric = v.replace(/\D/g, '').slice(0, 15);
+                        setForm(f => ({ ...f, celularImei: numeric }));
+                      }} 
+                      placeholder="Somente números" 
+                    />
                   )}
                   
                   <div className="border-t border-slate-100 pt-3">
-                    <Toggle label="Notebook autorizado" checked={form.notebookAutorizado} onChange={v => setForm(f => ({ ...f, notebookAutorizado: v, notebookInfo: v ? f.notebookInfo : '' }))} />
+                    <Toggle label="Notebook autorizado" checked={form.notebookAutorizado} onChange={v => setForm(f => ({ ...f, notebookAutorizado: v }))} />
                     {form.notebookAutorizado && (
-                      <Input label="Dados do Notebook (Marca + Etiqueta)" value={form.notebookInfo} onChange={v => setForm(f => ({ ...f, notebookInfo: v }))} placeholder="Ex: Dell - TAG 123456" />
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-2">
+                        <Input 
+                          label="Marca" 
+                          value={form.notebookMarca} 
+                          onChange={v => setForm(f => ({ ...f, notebookMarca: v }))} 
+                          placeholder="Ex: Dell, HP, Apple..." 
+                        />
+                        <Input 
+                          label="Patrimônio / Etiqueta" 
+                          value={form.notebookPatrimonio} 
+                          onChange={v => setForm(f => ({ ...f, notebookPatrimonio: v }))} 
+                          placeholder="Ex: TAG-123456" 
+                        />
+                      </div>
                     )}
                   </div>
                 </div>
