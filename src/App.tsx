@@ -1118,9 +1118,12 @@ function TreinamentosView({ profile }: { profile: UserProfile }) {
   const [items, setItems] = useState<TipoTreinamento[]>([]);
   const [search, setSearch] = useState('');
   const [showForm, setShowForm] = useState(false);
+  const [editTarget, setEditTarget] = useState<TipoTreinamento | null>(null);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
   const [form, setForm] = useState({ nome: '', validadeMeses: '12', escopo: 'personalizado', companyId: '' });
   const [companies, setCompanies] = useState<Company[]>([]);
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => { fetchAll(); }, []);
   const fetchAll = async () => { 
@@ -1131,14 +1134,46 @@ function TreinamentosView({ profile }: { profile: UserProfile }) {
     } catch {} 
   };
 
+  const openNew = () => {
+    setEditTarget(null);
+    setForm({ nome: '', validadeMeses: '12', escopo: 'personalizado', companyId: '' });
+    setShowForm(true);
+  };
+
+  const openEdit = (t: TipoTreinamento) => {
+    setEditTarget(t);
+    setForm({ 
+      nome: t.nome, 
+      validadeMeses: String(t.validadeMeses), 
+      escopo: t.escopo, 
+      companyId: t.companyId || '' 
+    });
+    setShowForm(true);
+  };
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault(); setSaving(true);
     try { 
-      await api.post('/treinamentos/tipos', form); 
+      if (editTarget) {
+        await api.put(`/treinamentos/tipos/${editTarget.id}`, form);
+      } else {
+        await api.post('/treinamentos/tipos', form); 
+      }
       fetchAll(); setShowForm(false); 
       setForm({ nome: '', validadeMeses: '12', escopo: 'personalizado', companyId: '' }); 
     }
     catch (err: any) { alert(err.error || 'Erro.'); } finally { setSaving(false); }
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteId) return;
+    setDeleting(true);
+    try {
+      await api.delete(`/treinamentos/tipos/${deleteId}`);
+      fetchAll();
+      setDeleteId(null);
+    } catch (err: any) { alert(err.error || 'Erro ao excluir treinamento.'); }
+    finally { setDeleting(false); }
   };
 
   const filtered = items.filter(t => {
@@ -1154,7 +1189,7 @@ function TreinamentosView({ profile }: { profile: UserProfile }) {
           <h1 className="text-2xl font-bold text-slate-900">Treinamentos</h1>
           <p className="text-sm text-slate-500 mt-0.5">Gerencie os treinamentos obrigatórios.</p>
         </div>
-        <Button onClick={() => setShowForm(true)}><Plus size={16} /> Novo</Button>
+        <Button onClick={openNew}><Plus size={16} /> Novo</Button>
       </div>
 
       {/* Search Bar */}
@@ -1173,7 +1208,7 @@ function TreinamentosView({ profile }: { profile: UserProfile }) {
           <table className="w-full">
             <thead>
               <tr className="border-b border-slate-100">
-                {['Código', 'Nome', 'Validade', 'Escopo'].map(h => <th key={h} className="text-left px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider">{h}</th>)}
+                {['Código', 'Nome', 'Validade', 'Escopo', ''].map(h => <th key={h} className="text-left px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider">{h}</th>)}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
@@ -1187,6 +1222,12 @@ function TreinamentosView({ profile }: { profile: UserProfile }) {
                       {t.escopo === 'global' ? 'Global' : 'Personalizado'}
                     </span>
                   </td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center justify-end gap-1">
+                      <Button variant="ghost" size="sm" onClick={() => openEdit(t)}><Pencil size={14} /></Button>
+                      <Button variant="ghost" size="sm" onClick={() => setDeleteId(t.id)}><Trash2 size={14} /></Button>
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -1196,7 +1237,7 @@ function TreinamentosView({ profile }: { profile: UserProfile }) {
       </Card>
       <AnimatePresence>
         {showForm && (
-          <Modal title="Novo Tipo de Treinamento" onClose={() => setShowForm(false)}>
+          <Modal title={editTarget ? 'Editar Treinamento' : 'Novo Tipo de Treinamento'} onClose={() => setShowForm(false)}>
             <form onSubmit={handleSave} className="space-y-4">
               <Input label="Descrição do Treinamento" value={form.nome} onChange={v => setForm(f => ({ ...f, nome: v }))} required placeholder="Ex: NR 10 - Segurança em Eletricidade" />
               <Input label="Validade (meses)" type="number" value={form.validadeMeses} onChange={v => setForm(f => ({ ...f, validadeMeses: v }))} required />
@@ -1217,6 +1258,18 @@ function TreinamentosView({ profile }: { profile: UserProfile }) {
               </div>
             </form>
           </Modal>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {deleteId && (
+          <ConfirmModal 
+            title="Excluir Treinamento"
+            message="Esta ação excluirá este tipo de treinamento do sistema. Isso não afetará históricos já registrados, mas impedirá novos registros com este tipo. Deseja continuar?"
+            onConfirm={confirmDelete}
+            onCancel={() => setDeleteId(null)}
+            loading={deleting}
+          />
         )}
       </AnimatePresence>
     </div>
