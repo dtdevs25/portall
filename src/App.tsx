@@ -685,6 +685,37 @@ function PortariaView({ profile }: { profile: UserProfile }) {
 
 // ─── Foto Uploader ────────────────────────────────────────────────────────────
 
+async function compressImage(file: File): Promise<File> {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = (event) => {
+      const img = new Image();
+      img.src = event.target?.result as string;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const MAX_WIDTH = 1000; // Resolução suficiente para crachá/perfil
+        const MAX_HEIGHT = 1000;
+        let width = img.width;
+        let height = img.height;
+        if (width > height) {
+          if (width > MAX_WIDTH) { height *= MAX_WIDTH / width; width = MAX_WIDTH; }
+        } else {
+          if (height > MAX_HEIGHT) { width *= MAX_HEIGHT / height; height = MAX_HEIGHT; }
+        }
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx?.drawImage(img, 0, 0, width, height);
+        canvas.toBlob((blob) => {
+          if (blob) resolve(new File([blob], file.name, { type: 'image/jpeg' }));
+          else resolve(file);
+        }, 'image/jpeg', 0.7); // 70% de qualidade economiza muito espaço
+      };
+    };
+  });
+}
+
 function PhotoPicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [loading, setLoading] = useState(false);
@@ -695,7 +726,8 @@ function PhotoPicker({ value, onChange }: { value: string; onChange: (v: string)
     
     setLoading(true);
     try {
-      const res = await api.uploadFile(file);
+      const compressed = await compressImage(file);
+      const res = await api.uploadFile(compressed);
       onChange(res.url);
     } catch (err: any) {
       alert(err.error || 'Erro ao fazer upload da imagem.');

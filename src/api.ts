@@ -32,9 +32,14 @@ async function request<T>(method: string, path: string, body?: any): Promise<T> 
   });
 
   if (!res.ok) {
-    let err: any = { error: `HTTP ${res.status}` };
-    try { err = await res.json(); } catch {}
-    throw err;
+    let errText = '';
+    try {
+      const errJson = await res.json();
+      errText = errJson.error || errJson.message || 'Erro no servidor';
+    } catch {
+      errText = `Erro ${res.status}: O servidor recusou o arquivo (provavelmente muito grande).`;
+    }
+    throw { error: errText };
   }
 
   if (res.status === 204) return undefined as any;
