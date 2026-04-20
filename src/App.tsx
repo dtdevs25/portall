@@ -810,6 +810,40 @@ function PessoasView({ profile }: { profile: UserProfile }) {
     });
   };
 
+  const calculateAutoExpiration = useCallback(() => {
+    if (form.tipoAcesso === 'visitante') {
+      if (!form.asoDataRealizacao) return '';
+      const d = new Date(form.asoDataRealizacao + 'T12:00:00');
+      d.setFullYear(d.getFullYear() + 1);
+      return d.toISOString().split('T')[0];
+    } else {
+      const dates: number[] = [];
+      if (form.asoDataRealizacao) {
+        const d = new Date(form.asoDataRealizacao + 'T12:00:00');
+        d.setFullYear(d.getFullYear() + 1);
+        dates.push(d.getTime());
+      }
+      form.treinamentos.forEach(t => {
+        const tipo = treiTipos.find(tt => tt.id === t.treinamentoId);
+        if (tipo && t.dataRealizacao) {
+          const d = new Date(t.dataRealizacao + 'T12:00:00');
+          d.setMonth(d.getMonth() + (tipo.validadeMeses || 12));
+          dates.push(d.getTime());
+        }
+      });
+      if (dates.length === 0) return '';
+      const minDate = new Date(Math.min(...dates));
+      return minDate.toISOString().split('T')[0];
+    }
+  }, [form.tipoAcesso, form.asoDataRealizacao, form.treinamentos, treiTipos]);
+
+  useEffect(() => {
+    const expiredAt = calculateAutoExpiration();
+    if (expiredAt !== form.liberadoAte) {
+      setForm(f => ({ ...f, liberadoAte: expiredAt }));
+    }
+  }, [calculateAutoExpiration, form.liberadoAte]);
+
   const fetchAll = async () => {
     try {
       const [p, e, t, c] = await Promise.all([
@@ -1017,7 +1051,17 @@ function PessoasView({ profile }: { profile: UserProfile }) {
                     />
                   </div>
                 )}
-                <Input label="Último ASO" type="date" value={form.liberadoAte} onChange={v => setForm(f => ({ ...f, liberadoAte: v }))} required hint="Data de expiração do acesso" />
+                <div className="space-y-1">
+                  <Input 
+                    label={form.tipoAcesso === 'visitante' ? 'Data da Visita' : 'Último ASO'} 
+                    type="date" 
+                    value={form.asoDataRealizacao} 
+                    onChange={handleAsoUpdate} 
+                    required 
+                    hint={form.tipoAcesso === 'visitante' ? 'Acesso liberado por 1 ano' : 'Calcula validade mínima (ASO + Treinamentos)'} 
+                  />
+                </div>
+                <Input label="Acesso Válido Até" type="date" value={form.liberadoAte} onChange={v => setForm(f => ({ ...f, liberadoAte: v }))} required hint="Data calculada automaticamente" />
                 <Input label="Descrição da Atividade / Visita" value={form.descricaoAtividade} onChange={v => setForm(f => ({ ...f, descricaoAtividade: v }))} placeholder="Descreva o motivo do acesso" />
               </div>
 
@@ -1068,7 +1112,7 @@ function PessoasView({ profile }: { profile: UserProfile }) {
                 <div className="space-y-4 p-4 bg-blue-50 rounded-2xl border border-blue-100">
                   <h4 className="text-xs font-bold text-blue-600 uppercase tracking-wider">Dados do Prestador</h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <Input label="ASO — Data de Realização" type="date" value={form.asoDataRealizacao} onChange={handleAsoUpdate} hint="Expira em 1 ano" />
+                    <p className="text-xs text-blue-500 italic md:col-span-2">A data do ASO e treinamentos determinam a validade do acesso no campo acima.</p>
                   </div>
                   <Toggle label="EPI obrigatório" checked={form.epiObrigatorio} onChange={v => setForm(f => ({ ...f, epiObrigatorio: v }))} />
                   {form.epiObrigatorio && (
