@@ -16,6 +16,12 @@ import { format, parseISO, isValid } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { motion, AnimatePresence } from 'motion/react';
 
+// Custom CSS for Modal scrollbar
+const modalStyles = `
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+`;
+
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
 function cn(...classes: (string | boolean | undefined | null)[]): string {
@@ -142,7 +148,7 @@ function Modal({ title, onClose, children, size = 'md' }: {
         animate={{ scale: 1, opacity: 1 }} 
         exit={{ scale: 0.95, opacity: 0 }}
         onMouseDown={e => e.stopPropagation()}
-        className={cn('bg-white rounded-2xl shadow-2xl w-full max-h-[90vh] overflow-y-auto', widths[size])}>
+        className={cn('bg-white rounded-2xl shadow-2xl w-full max-h-[90vh] overflow-y-auto no-scrollbar', widths[size])}>
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 sticky top-0 bg-white z-10">
           <h2 className="text-base font-bold text-slate-900">{title}</h2>
           <button onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"><X size={18} /></button>
@@ -688,8 +694,38 @@ function PessoasView({ profile }: { profile: UserProfile }) {
   const [filterStatus, setFilterStatus] = useState('');
 
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [docType, setDocType] = useState<'CPF' | 'RG'>('CPF');
+  const [coSearch, setCoSearch] = useState('');
+  const [origSearch, setOrigSearch] = useState('');
 
   useEffect(() => { fetchAll(); }, []);
+
+  const maskCPF = (v: string) => {
+    v = v.replace(/\D/g, '');
+    if (v.length > 11) v = v.slice(0, 11);
+    return v.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
+  };
+
+  const handleDocChange = (v: string) => {
+    if (docType === 'CPF') {
+      const numeric = v.replace(/\D/g, '');
+      if (numeric.length <= 11) setForm(f => ({ ...f, documento: maskCPF(v) }));
+    } else {
+      setForm(f => ({ ...f, documento: v }));
+    }
+  };
+
+  const handleAsoUpdate = (date: string) => {
+    setForm(f => {
+      const newF = { ...f, asoDataRealizacao: date };
+      if (date) {
+        const d = new Date(date + 'T12:00:00'); // avoid timezone shifts
+        d.setFullYear(d.getFullYear() + 1);
+        newF.liberadoAte = d.toISOString().split('T')[0];
+      }
+      return newF;
+    });
+  };
 
   const fetchAll = async () => {
     try {
@@ -852,18 +888,72 @@ function PessoasView({ profile }: { profile: UserProfile }) {
               {/* Dados Principais */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Input label="Nome Completo" value={form.nomeCompleto} onChange={v => setForm(f => ({ ...f, nomeCompleto: v }))} required placeholder="Nome completo" />
-                <Input label="RG ou CPF" value={form.documento} onChange={v => setForm(f => ({ ...f, documento: v }))} required placeholder="000.000.000-00" />
-                <Select label="Empresa de Origem" value={form.empresaOrigemId} onChange={v => setForm(f => ({ ...f, empresaOrigemId: v }))}>
-                  <option value="">— Selecione —</option>
-                  {empresasTerceiro.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
-                </Select>
+                
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Documento</label>
+                    <div className="flex bg-slate-100 p-0.5 rounded-lg">
+                      <button type="button" onClick={() => setDocType('CPF')} className={cn('px-2 py-0.5 text-[10px] rounded-md font-bold transition-all', docType === 'CPF' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400')}>CPF</button>
+                      <button type="button" onClick={() => setDocType('RG')} className={cn('px-2 py-0.5 text-[10px] rounded-md font-bold transition-all', docType === 'RG' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400')}>RG</button>
+                    </div>
+                  </div>
+                  <input 
+                    value={form.documento} 
+                    onChange={e => handleDocChange(e.target.value)} 
+                    required 
+                    placeholder={docType === 'CPF' ? '000.000.000-00' : 'Número do RG'}
+                    className="w-full px-3 py-2.5 rounded-lg border border-slate-200 bg-white text-sm text-slate-900 outline-none focus:ring-2 focus:ring-blue-500" 
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Empresa de Origem</label>
+                  <div className="relative">
+                    <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input 
+                      placeholder="Pesquisar empresa..."
+                      value={origSearch}
+                      onChange={e => setOrigSearch(e.target.value)}
+                      className="w-full pl-8 pr-3 py-2 rounded-lg border border-slate-100 bg-slate-50 text-[11px] outline-none mb-1"
+                    />
+                    <select 
+                      value={form.empresaOrigemId} 
+                      onChange={e => setForm(f => ({ ...f, empresaOrigemId: e.target.value }))}
+                      className="w-full px-3 py-2.5 rounded-lg border border-slate-200 bg-white text-sm text-slate-900 outline-none"
+                    >
+                      <option value="">— Selecione —</option>
+                      {empresasTerceiro
+                        .filter(e => !origSearch || e.name.toLowerCase().includes(origSearch.toLowerCase()))
+                        .map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
+                    </select>
+                  </div>
+                </div>
+
                 <Input label="Responsável Interno" value={form.responsavelInterno} onChange={v => setForm(f => ({ ...f, responsavelInterno: v }))} required placeholder="Nome do acompanhante" />
+                
                 {(profile.role === 'master' || profile.role === 'admin') && (
-                  <Select label="Empresa de Acesso (Unidade)" value={form.companyId} onChange={v => setForm(f => ({ ...f, companyId: v }))} required>
-                    <CompanySelectOptions companies={companies} />
-                  </Select>
+                  <div className="space-y-1">
+                    <label className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Empresa de Acesso (Unidade)</label>
+                    <div className="relative">
+                      <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                      <input 
+                        placeholder="Pesquisar unidade..."
+                        value={coSearch}
+                        onChange={e => setCoSearch(e.target.value)}
+                        className="w-full pl-8 pr-3 py-2 rounded-lg border border-slate-100 bg-slate-50 text-[11px] outline-none mb-1"
+                      />
+                      <select 
+                        value={form.companyId} 
+                        onChange={e => setForm(f => ({ ...f, companyId: e.target.value }))} 
+                        required
+                        className="w-full px-3 py-2.5 rounded-lg border border-slate-200 bg-white text-sm text-slate-900 outline-none"
+                      >
+                        <CompanySelectOptions companies={companies.filter(c => !coSearch || c.name.toLowerCase().includes(coSearch.toLowerCase()))} />
+                      </select>
+                    </div>
+                  </div>
                 )}
-                <Input label="Liberado Até" type="date" value={form.liberadoAte} onChange={v => setForm(f => ({ ...f, liberadoAte: v }))} />
+                <Input label="Liberado Até" type="date" value={form.liberadoAte} onChange={v => setForm(f => ({ ...f, liberadoAte: v }))} hint="Definido automaticamente pelo ASO" />
                 <Input label="Descrição da Atividade / Visita" value={form.descricaoAtividade} onChange={v => setForm(f => ({ ...f, descricaoAtividade: v }))} placeholder="Descreva o motivo do acesso" />
               </div>
 
@@ -879,7 +969,7 @@ function PessoasView({ profile }: { profile: UserProfile }) {
                 <div className="space-y-4 p-4 bg-blue-50 rounded-2xl border border-blue-100">
                   <h4 className="text-xs font-bold text-blue-600 uppercase tracking-wider">Dados do Prestador</h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <Input label="ASO — Data de Realização" type="date" value={form.asoDataRealizacao} onChange={v => setForm(f => ({ ...f, asoDataRealizacao: v }))} />
+                    <Input label="ASO — Data de Realização" type="date" value={form.asoDataRealizacao} onChange={handleAsoUpdate} hint="Expira em 1 ano" />
                   </div>
                   <Toggle label="EPI obrigatório" checked={form.epiObrigatorio} onChange={v => setForm(f => ({ ...f, epiObrigatorio: v }))} />
                   {form.epiObrigatorio && (
@@ -1804,6 +1894,9 @@ export default function App() {
   const [resetLoading, setResetLoading] = useState(false);
 
   useEffect(() => {
+    const style = document.createElement('style');
+    style.textContent = modalStyles;
+    document.head.append(style);
     const params = new URLSearchParams(window.location.search);
     const token = params.get('reset_token');
     if (token) { setResetToken(token); window.history.replaceState({}, '', window.location.pathname); }
