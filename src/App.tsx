@@ -145,10 +145,11 @@ function SearchableSelect({ value, onChange, options, placeholder, required }: {
       document.removeEventListener('mousedown', handleClick);
       document.removeEventListener('keydown', handleKey);
     };
-  }, [isOpen, filtered, onChange]);
+  }, [isOpen, search, onChange]);
 
-  const selectedLabel = options.find(o => o.value === value)?.label || '';
-  const filtered = options.filter(o => o.label.toLowerCase().includes(search.toLowerCase()));
+  const safeOptions = options || [];
+  const selectedLabel = safeOptions.find(o => o.value === value)?.label || '';
+  const filtered = safeOptions.filter(o => (o.label || '').toLowerCase().includes(search.toLowerCase()));
 
   return (
     <div ref={containerRef} className="relative">
@@ -184,10 +185,10 @@ function SearchableSelect({ value, onChange, options, placeholder, required }: {
                   onClick={() => { onChange(o.value); setIsOpen(false); setSearch(''); }}
                   className={cn(
                     "w-full text-left px-3 py-2 text-sm transition-colors hover:bg-blue-50",
-                    o.value === value ? "text-blue-600 font-bold bg-blue-50/50" : "text-slate-700"
+                    value && o.value === value ? "text-blue-600 font-bold bg-blue-50/50" : "text-slate-700"
                   )}
                 >
-                  {o.label}
+                  {o.label || 'Sem nome'}
                 </button>
               ))
             )}
