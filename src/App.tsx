@@ -977,7 +977,7 @@ function PessoasView({ profile }: { profile: UserProfile }) {
                 
                 <div className="space-y-1">
                   <div className="flex items-center justify-between">
-                    <label className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Documento</label>
+                    <label className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Documento <span className="text-red-500">*</span></label>
                     <div className="flex bg-slate-100 p-0.5 rounded-lg">
                       <button type="button" onClick={() => setDocType('CPF')} className={cn('px-2 py-0.5 text-[10px] rounded-md font-bold transition-all', docType === 'CPF' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400')}>CPF</button>
                       <button type="button" onClick={() => setDocType('RG')} className={cn('px-2 py-0.5 text-[10px] rounded-md font-bold transition-all', docType === 'RG' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400')}>RG</button>
@@ -1100,7 +1100,7 @@ function PessoasView({ profile }: { profile: UserProfile }) {
                           <div key={i} className="p-3 bg-white rounded-xl border border-blue-100 space-y-2">
                             <div className="flex justify-between items-start">
                               <div className="flex-1">
-                                <Select label="Tipo de Treinamento" value={t.treinamentoId} onChange={v => updateTreinamento(i, 'treinamentoId', v)}>
+                                <Select label="Tipo de Treinamento" value={t.treinamentoId} onChange={v => updateTreinamento(i, 'treinamentoId', v)} required>
                                   <option value="">— Selecione —</option>
                                   {treiTipos.map(tt => <option key={tt.id} value={tt.id}>{tt.codigo} — {tt.nome}</option>)}
                                 </Select>
@@ -1109,7 +1109,7 @@ function PessoasView({ profile }: { profile: UserProfile }) {
                             </div>
                             <div className="flex items-center gap-4">
                               <div className="flex-1">
-                                <Input label="Data de Realização" type="date" value={t.dataRealizacao} onChange={v => updateTreinamento(i, 'dataRealizacao', v)} />
+                                <Input label="Data de Realização" type="date" value={t.dataRealizacao} onChange={v => updateTreinamento(i, 'dataRealizacao', v)} required />
                               </div>
                               <div className="flex-1 pt-4 text-right">
                                 {statusNode}
