@@ -167,6 +167,19 @@ router.get('/me', requireAuth, async (req: AuthRequest, res: Response) => {
 // POST /api/auth/forgot-password
 // ============================================================
 router.post('/forgot-password', async (req: Request, res: Response) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      res.status(400).json({ error: 'Email é obrigatório.' });
+      return;
+    }
+
+    const user = await queryOne<{ id: string; email: string; display_name: string }>(
+      `SELECT id, email, display_name FROM users WHERE LOWER(email) = LOWER($1) AND is_active = TRUE`,
+      [email.trim()]
+    );
+
     if (!user) {
       res.status(404).json({ error: 'E-mail não cadastrado em nosso sistema.' });
       return;
@@ -179,8 +192,8 @@ router.post('/forgot-password', async (req: Request, res: Response) => {
 
     await query(
       `UPDATE users 
-        SET reset_token = $1, reset_token_expires = $2
-        WHERE id = $3`,
+       SET reset_token = $1, reset_token_expires = $2
+       WHERE id = $3`,
       [resetTokenHash, expiresAt, user.id]
     );
 
@@ -204,11 +217,11 @@ router.post('/forgot-password', async (req: Request, res: Response) => {
             </div>
             <h2 style="color: #1f2937; font-size: 18px;">Olá, ${user.display_name}!</h2>
             <p style="color: #4b5563; line-height: 1.6;">
-              Recebermos uma solicitação para redefinir sua senha. Clique no botão abaixo para criar uma nova senha:
+              Recebemos uma solicitação para redefinir sua senha. Clique no botão abaixo para criar uma nova senha:
             </p>
             <div style="text-align: center; margin: 32px 0;">
               <a href="${resetUrl}" 
-                  style="background-color: #002b5c; color: white; padding: 14px 32px; border-radius: 12px; text-decoration: none; font-weight: bold; display: inline-block;">
+                 style="background-color: #002b5c; color: white; padding: 14px 32px; border-radius: 12px; text-decoration: none; font-weight: bold; display: inline-block;">
                 Redefinir Minha Senha
               </a>
             </div>
