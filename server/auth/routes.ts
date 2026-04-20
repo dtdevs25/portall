@@ -167,82 +167,69 @@ router.get('/me', requireAuth, async (req: AuthRequest, res: Response) => {
 // POST /api/auth/forgot-password
 // ============================================================
 router.post('/forgot-password', async (req: Request, res: Response) => {
-  // Sempre retorna sucesso para evitar enumeração de emails
-  const SUCCESS_MSG = 'Se este e-mail estiver cadastrado, você receberá as instruções em breve.';
-
-  try {
-    const { email } = req.body;
-
-    if (!email) {
-      res.status(400).json({ error: 'Email é obrigatório.' });
+    if (!user) {
+      res.status(404).json({ error: 'E-mail não cadastrado em nosso sistema.' });
       return;
     }
 
-    const user = await queryOne<{ id: string; email: string; display_name: string }>(
-      `SELECT id, email, display_name FROM users WHERE LOWER(email) = LOWER($1) AND is_active = TRUE`,
-      [email.trim()]
+    // Gera token seguro (64 bytes hex)
+    const resetToken = crypto.randomBytes(64).toString('hex');
+    const resetTokenHash = crypto.createHash('sha256').update(resetToken).digest('hex');
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hora
+
+    await query(
+      `UPDATE users 
+        SET reset_token = $1, reset_token_expires = $2
+        WHERE id = $3`,
+      [resetTokenHash, expiresAt, user.id]
     );
 
-    if (user) {
-      // Gera token seguro (64 bytes hex)
-      const resetToken = crypto.randomBytes(64).toString('hex');
-      const resetTokenHash = crypto.createHash('sha256').update(resetToken).digest('hex');
-      const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hora
+    const appUrl = process.env.APP_URL || 'https://portall.ehspro.com.br';
+    const resetUrl = `${appUrl}/?reset_token=${resetToken}`;
 
-      await query(
-        `UPDATE users 
-         SET reset_token = $1, reset_token_expires = $2
-         WHERE id = $3`,
-        [resetTokenHash, expiresAt, user.id]
-      );
-
-      const appUrl = process.env.APP_URL || 'https://portall.ehspro.com.br';
-      const resetUrl = `${appUrl}/?reset_token=${resetToken}`;
-
-      // Envia email
-      await mailer.sendMail({
-        from: `"PortALL" <${process.env.SMTP_USER}>`,
-        to: user.email,
-        subject: 'Redefinição de Senha — PortALL',
-        html: `
-          <!DOCTYPE html>
-          <html lang="pt-BR">
-          <head><meta charset="UTF-8"></head>
-          <body style="font-family: Arial, sans-serif; background-color: #f5f5f5; padding: 40px 20px;">
-            <div style="max-width: 500px; margin: 0 auto; background: white; border-radius: 16px; padding: 40px; box-shadow: 0 4px 20px rgba(0,0,0,0.08);">
-              <div style="text-align: center; margin-bottom: 32px;">
-                <img src="${process.env.APP_URL || 'https://portall.ehspro.com.br'}/LogoApenas.png" alt="PortALL" style="height: 48px; margin-bottom: 8px; object-fit: contain;">
-                <p style="color: #6b7280; margin: 0;">Gestão de Acessos e Terceiros</p>
-              </div>
-              <h2 style="color: #1f2937; font-size: 18px;">Olá, ${user.display_name}!</h2>
-              <p style="color: #4b5563; line-height: 1.6;">
-                Recebemos uma solicitação para redefinir sua senha. Clique no botão abaixo para criar uma nova senha:
-              </p>
-              <div style="text-align: center; margin: 32px 0;">
-                <a href="${resetUrl}" 
-                   style="background-color: #002b5c; color: white; padding: 14px 32px; border-radius: 12px; text-decoration: none; font-weight: bold; display: inline-block;">
-                  Redefinir Minha Senha
-                </a>
-              </div>
-              <p style="color: #9ca3af; font-size: 13px; text-align: center;">
-                Este link é válido por <strong>1 hora</strong>.<br>
-                Se você não solicitou a redefinição, ignore este e-mail.
-              </p>
-              <hr style="border: none; border-top: 1px solid #f3f4f6; margin: 24px 0;">
-              <p style="color: #9ca3af; font-size: 11px; text-align: center;">
-                PortALL &copy; ${new Date().getFullYear()} — Gestão de Acessos
-              </p>
+    // Envia email
+    await mailer.sendMail({
+      from: `"PortALL" <${process.env.SMTP_USER}>`,
+      to: user.email,
+      subject: 'Redefinição de Senha — PortALL',
+      html: `
+        <!DOCTYPE html>
+        <html lang="pt-BR">
+        <head><meta charset="UTF-8"></head>
+        <body style="font-family: Arial, sans-serif; background-color: #f5f5f5; padding: 40px 20px;">
+          <div style="max-width: 500px; margin: 0 auto; background: white; border-radius: 16px; padding: 40px; box-shadow: 0 4px 20px rgba(0,0,0,0.08);">
+            <div style="text-align: center; margin-bottom: 32px;">
+              <img src="${process.env.APP_URL || 'https://portall.ehspro.com.br'}/LogoApenas.png" alt="PortALL" style="height: 48px; margin-bottom: 8px; object-fit: contain;">
+              <p style="color: #6b7280; margin: 0;">Gestão de Acessos e Terceiros</p>
             </div>
-          </body>
-          </html>
-        `,
-      }).catch(err => console.error('Email send error:', err));
-    }
+            <h2 style="color: #1f2937; font-size: 18px;">Olá, ${user.display_name}!</h2>
+            <p style="color: #4b5563; line-height: 1.6;">
+              Recebermos uma solicitação para redefinir sua senha. Clique no botão abaixo para criar uma nova senha:
+            </p>
+            <div style="text-align: center; margin: 32px 0;">
+              <a href="${resetUrl}" 
+                  style="background-color: #002b5c; color: white; padding: 14px 32px; border-radius: 12px; text-decoration: none; font-weight: bold; display: inline-block;">
+                Redefinir Minha Senha
+              </a>
+            </div>
+            <p style="color: #9ca3af; font-size: 13px; text-align: center;">
+              Este link é válido por <strong>1 hora</strong>.<br>
+              Se você não solicitou a redefinição, ignore este e-mail.
+            </p>
+            <hr style="border: none; border-top: 1px solid #f3f4f6; margin: 24px 0;">
+            <p style="color: #9ca3af; font-size: 11px; text-align: center;">
+              PortALL &copy; ${new Date().getFullYear()} — Gestão de Acessos
+            </p>
+          </div>
+        </body>
+        </html>
+      `,
+    }).catch(err => console.error('Email send error:', err));
 
-    res.json({ message: SUCCESS_MSG });
+    res.json({ message: 'Link enviado! Verifique seu e-mail.' });
   } catch (err) {
     console.error('Forgot password error:', err);
-    res.json({ message: SUCCESS_MSG });
+    res.status(500).json({ error: 'Erro interno ao processar solicitação.' });
   }
 });
 

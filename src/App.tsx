@@ -130,12 +130,18 @@ function Modal({ title, onClose, children, size = 'md' }: {
   const widths = { md: 'max-w-md', lg: 'max-w-2xl', xl: 'max-w-4xl' };
   
   return createPortal(
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={onClose}>
+    <div 
+      className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" 
+      onMouseDown={(e) => {
+        // Only close if clicking directly on the backdrop (not dragging from inside)
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
       <motion.div 
         initial={{ scale: 0.95, opacity: 0 }} 
         animate={{ scale: 1, opacity: 1 }} 
         exit={{ scale: 0.95, opacity: 0 }}
-        onClick={e => e.stopPropagation()}
+        onMouseDown={e => e.stopPropagation()}
         className={cn('bg-white rounded-2xl shadow-2xl w-full max-h-[90vh] overflow-y-auto', widths[size])}>
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 sticky top-0 bg-white z-10">
           <h2 className="text-base font-bold text-slate-900">{title}</h2>
@@ -181,8 +187,8 @@ function LoginPage({ onLogin }: { onLogin: (user: UserProfile) => void }) {
     setForgotLoading(true);
     setForgotMsg('');
     try {
-      await api.post('/auth/forgot-password', { email: forgotEmail });
-      setForgotMsg('Link enviado! Verifique seu e-mail.');
+      const data = await api.post<{ message: string }>('/auth/forgot-password', { email: forgotEmail });
+      setForgotMsg(data.message);
     } catch (err: any) { setForgotMsg(err.error || 'Erro ao enviar.'); }
     finally { setForgotLoading(false); }
   };
@@ -215,7 +221,7 @@ function LoginPage({ onLogin }: { onLogin: (user: UserProfile) => void }) {
           opacity: [0.3, 0.5, 0.3] 
         }}
         transition={{ duration: 10, repeat: Infinity, ease: "easeInOut" }}
-        className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] rounded-full blur-[120px] bg-blue-500/20 mix-blend-screen" 
+        className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] rounded-full blur-[120px] bg-blue-500/20 mix-blend-screen pointer-events-none" 
       />
       
       <motion.div 
@@ -224,7 +230,7 @@ function LoginPage({ onLogin }: { onLogin: (user: UserProfile) => void }) {
           opacity: [0.2, 0.4, 0.2] 
         }}
         transition={{ duration: 12, repeat: Infinity, ease: "easeInOut" }}
-        className="absolute bottom-[-10%] right-[-10%] w-[60%] h-[60%] rounded-full blur-[150px] bg-sky-400/10 mix-blend-screen" 
+        className="absolute bottom-[-10%] right-[-10%] w-[60%] h-[60%] rounded-full blur-[150px] bg-sky-400/10 mix-blend-screen pointer-events-none" 
       />
 
       <motion.div 
@@ -1639,24 +1645,70 @@ export default function App() {
   );
 
   if (resetToken) return (
-    <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4">
-      <div className="w-full max-w-sm bg-white rounded-3xl shadow-xl p-8 space-y-5">
-        <div className="text-center">
-          <div className="w-14 h-14 bg-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-3">
-            <ShieldCheck size={28} className="text-white" />
+    <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden bg-[#001A33]">
+      {/* Dark blue background with subtle gradient and glows to match login */}
+      <div className="absolute inset-0 bg-gradient-to-br from-[#000d1a] via-[#001A33] to-[#000a14]" />
+      <div className="absolute inset-0 bg-grid-tech opacity-20" />
+      
+      <motion.div 
+        animate={{ scale: [1, 1.1, 1], opacity: [0.3, 0.4, 0.3] }}
+        transition={{ duration: 10, repeat: Infinity, ease: "easeInOut" }}
+        className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] rounded-full blur-[120px] bg-blue-500/10 mix-blend-screen pointer-events-none" 
+      />
+
+      <motion.div 
+        animate={{ scale: [1, 1.2, 1], opacity: [0.2, 0.3, 0.2] }}
+        transition={{ duration: 12, repeat: Infinity, ease: "easeInOut" }}
+        className="absolute bottom-[-10%] right-[-10%] w-[60%] h-[60%] rounded-full blur-[150px] bg-sky-400/5 mix-blend-screen pointer-events-none" 
+      />
+
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="w-full max-w-sm relative z-10"
+      >
+        <div className="bg-white/90 backdrop-blur-2xl rounded-[2.5rem] shadow-2xl p-10 border border-white">
+          <div className="text-center mb-8">
+            <div className="flex items-center justify-center mb-6">
+              <img src="/LogoCompleto.png" alt="PortALL" className="h-24 w-auto object-contain" />
+            </div>
+            <h1 className="text-xl font-black text-slate-900 uppercase tracking-tight">Definir Senha</h1>
+            <p className="text-sm font-medium text-slate-500 mt-1">Crie sua nova senha de acesso.</p>
           </div>
-          <h1 className="text-xl font-bold text-slate-900">Definir Senha</h1>
-          <p className="text-sm text-slate-500 mt-1">Crie sua senha de acesso ao sistema.</p>
+
+          <form onSubmit={handleResetPassword} className="space-y-5">
+            <div className="space-y-4">
+              <Input label="Nova Senha" type="password" value={resetPw} onChange={setResetPw} required placeholder="Mínimo 8 caracteres" />
+              <Input label="Confirmar Senha" type="password" value={resetConfirm} onChange={setResetConfirm} required placeholder="Repita a senha" />
+            </div>
+
+            {resetMsg && (
+              <motion.div 
+                initial={{ opacity: 0, y: -10 }} 
+                animate={{ opacity: 1, y: 0 }}
+                className={cn(
+                  'p-3 rounded-xl text-xs font-bold text-center border',
+                  resetMsg.includes('sucesso') 
+                    ? 'bg-emerald-50 text-emerald-600 border-emerald-100' 
+                    : 'bg-red-50 text-red-600 border-red-100'
+                )}
+              >
+                {resetMsg}
+              </motion.div>
+            )}
+
+            <div className="pt-2">
+              <button 
+                type="submit" 
+                disabled={resetLoading} 
+                className="w-full py-4 rounded-2xl bg-blue-600 text-white font-bold text-sm hover:bg-blue-700 transition-all disabled:opacity-60 shadow-xl shadow-blue-500/25 active:scale-95"
+              >
+                {resetLoading ? 'Salvando...' : 'Confirmar Nova Senha'}
+              </button>
+            </div>
+          </form>
         </div>
-        <form onSubmit={handleResetPassword} className="space-y-4">
-          <Input label="Nova Senha" type="password" value={resetPw} onChange={setResetPw} required placeholder="Mínimo 8 caracteres" />
-          <Input label="Confirmar Senha" type="password" value={resetConfirm} onChange={setResetConfirm} required placeholder="Repita a senha" />
-          {resetMsg && <p className={cn('text-sm text-center font-medium', resetMsg.includes('sucesso') ? 'text-emerald-600' : 'text-red-600')}>{resetMsg}</p>}
-          <button type="submit" disabled={resetLoading} className="w-full py-3 rounded-xl bg-blue-600 text-white font-semibold text-sm hover:bg-blue-700 transition-all disabled:opacity-60">
-            {resetLoading ? 'Salvando...' : 'Confirmar Senha'}
-          </button>
-        </form>
-      </div>
+      </motion.div>
     </div>
   );
 
