@@ -132,9 +132,20 @@ function SearchableSelect({ value, onChange, options, placeholder, required }: {
     const handleClick = (e: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) setIsOpen(false);
     };
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setIsOpen(false);
+      if (e.key === 'Enter' && isOpen && filtered.length > 0) {
+        onChange(filtered[0].value);
+        setIsOpen(false);
+      }
+    };
     document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
-  }, []);
+    document.addEventListener('keydown', handleKey);
+    return () => {
+      document.removeEventListener('mousedown', handleClick);
+      document.removeEventListener('keydown', handleKey);
+    };
+  }, [isOpen, filtered, onChange]);
 
   const selectedLabel = options.find(o => o.value === value)?.label || '';
   const filtered = options.filter(o => o.label.toLowerCase().includes(search.toLowerCase()));
@@ -152,6 +163,7 @@ function SearchableSelect({ value, onChange, options, placeholder, required }: {
           readOnly={!isOpen && !!selectedLabel}
         />
         {required && !value && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-red-500">*</span>}
+        <input type="text" className="sr-only" required={required} value={value} onChange={() => {}} tabIndex={-1} />
       </div>
       
       <AnimatePresence>
@@ -980,12 +992,13 @@ function PessoasView({ profile }: { profile: UserProfile }) {
                 </div>
 
                 <div className="space-y-1 relative">
-                  <label className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Empresa de Origem</label>
+                  <label className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Empresa de Origem <span className="text-red-500">*</span></label>
                   <SearchableSelect 
                     placeholder="Pesquisar empresa..."
                     value={form.empresaOrigemId}
                     onChange={v => setForm(f => ({ ...f, empresaOrigemId: v }))}
                     options={empresasTerceiro.map(e => ({ value: e.id, label: e.name }))}
+                    required
                   />
                 </div>
 
@@ -993,7 +1006,7 @@ function PessoasView({ profile }: { profile: UserProfile }) {
                 
                 {(profile.role === 'master' || profile.role === 'admin') && (
                   <div className="space-y-1 relative">
-                    <label className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Empresa de Acesso (Unidade)</label>
+                    <label className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Empresa de Acesso (Unidade) <span className="text-red-500">*</span></label>
                     <SearchableSelect 
                       placeholder="Pesquisar unidade..."
                       value={form.companyId}
@@ -1003,7 +1016,7 @@ function PessoasView({ profile }: { profile: UserProfile }) {
                     />
                   </div>
                 )}
-                <Input label="Último ASO (Calculado)" type="date" value={form.liberadoAte} onChange={v => setForm(f => ({ ...f, liberadoAte: v }))} hint="Data de expiração do acesso" />
+                <Input label="Último ASO" type="date" value={form.liberadoAte} onChange={v => setForm(f => ({ ...f, liberadoAte: v }))} required hint="Data de expiração do acesso" />
                 <Input label="Descrição da Atividade / Visita" value={form.descricaoAtividade} onChange={v => setForm(f => ({ ...f, descricaoAtividade: v }))} placeholder="Descreva o motivo do acesso" />
               </div>
 
@@ -1021,6 +1034,7 @@ function PessoasView({ profile }: { profile: UserProfile }) {
                         setForm(f => ({ ...f, celularImei: numeric }));
                       }} 
                       placeholder="Somente números" 
+                      required
                     />
                   )}
                   
@@ -1032,13 +1046,15 @@ function PessoasView({ profile }: { profile: UserProfile }) {
                           label="Marca" 
                           value={form.notebookMarca} 
                           onChange={v => setForm(f => ({ ...f, notebookMarca: v }))} 
-                          placeholder="Ex: Dell, HP, Apple..." 
+                          placeholder="Ex: Dell, HP..." 
+                          required
                         />
                         <Input 
                           label="Patrimônio / Etiqueta" 
                           value={form.notebookPatrimonio} 
                           onChange={v => setForm(f => ({ ...f, notebookPatrimonio: v }))} 
                           placeholder="Ex: TAG-123456" 
+                          required
                         />
                       </div>
                     )}
