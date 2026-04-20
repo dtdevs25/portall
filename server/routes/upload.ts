@@ -1,14 +1,14 @@
 import { Router } from 'express';
 import multer from 'multer';
 import { minioClient, MINIO_BUCKET } from '../minioClient.js';
-import { authenticateToken } from '../auth/middleware.js';
+import { requireAuth } from '../auth/middleware.js';
 import path from 'path';
 import crypto from 'crypto';
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage() });
 
-router.post('/', authenticateToken, upload.single('foto'), async (req, res) => {
+router.post('/', requireAuth, upload.single('foto'), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'Nenhum arquivo enviado.' });
