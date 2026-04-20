@@ -2,7 +2,10 @@ import * as Minio from 'minio';
 import dotenv from 'dotenv';
 dotenv.config();
 
-const endPoint = process.env.MINIO_ENDPOINT || 'minio.ctdibrasil.com.br';
+let endPoint = process.env.MINIO_ENDPOINT || 'minio.ctdibrasil.com.br';
+// Remove protocolo se o usuário tiver colocado por engano
+endPoint = endPoint.replace(/^https?:\/\//, '').split('/')[0];
+
 const port = process.env.MINIO_PORT ? parseInt(process.env.MINIO_PORT) : undefined;
 const accessKey = process.env.MINIO_ACCESS_KEY || '';
 const secretKey = process.env.MINIO_SECRET_KEY || '';
