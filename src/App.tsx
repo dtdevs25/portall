@@ -896,6 +896,7 @@ function SimpleListView<T extends { id: string; name?: string; nome?: string }>(
   const [items, setItems] = useState<T[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [editItem, setEditItem] = useState<T | null>(null);
+  const [search, setSearch] = useState('');
 
   useEffect(() => { fetchAll(); }, []);
   const fetchAll = async () => { try { setItems(await api.get<T[]>(endpoint)); } catch {} };
@@ -905,15 +906,33 @@ function SimpleListView<T extends { id: string; name?: string; nome?: string }>(
     try { await api.delete(`${endpoint}/${id}`); fetchAll(); } catch (err: any) { alert(err.error || 'Erro.'); }
   };
 
+  const filtered = items.filter(item => {
+    if (!search) return true;
+    const s = search.toLowerCase();
+    return (item.name?.toLowerCase().includes(s) || item.nome?.toLowerCase().includes(s));
+  });
+
   return (
     <div className="max-w-4xl mx-auto space-y-6">
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">{title}</h1>
           <p className="text-sm text-slate-500 mt-0.5">{subtitle}</p>
         </div>
         <Button onClick={() => { setEditItem(null); setShowForm(true); }}><Plus size={16} /> Novo</Button>
       </div>
+
+      {/* Search Bar */}
+      <div className="relative">
+        <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+        <input 
+          value={search} 
+          onChange={e => setSearch(e.target.value)} 
+          placeholder="Buscar nesta lista..."
+          className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 bg-white text-sm outline-none focus:ring-2 focus:ring-blue-500 transition-all" 
+        />
+      </div>
+
       <Card>
         <div className="overflow-x-auto">
           <table className="w-full">
@@ -924,7 +943,7 @@ function SimpleListView<T extends { id: string; name?: string; nome?: string }>(
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
-              {items.map(item => (
+              {filtered.map(item => (
                 <tr key={item.id} className="hover:bg-slate-50/50 transition-colors">
                   {columns.map((c, i) => <td key={i} className="px-4 py-3 text-sm text-slate-700">{c.render(item)}</td>)}
                   <td className="px-4 py-3">
@@ -937,7 +956,7 @@ function SimpleListView<T extends { id: string; name?: string; nome?: string }>(
               ))}
             </tbody>
           </table>
-          {items.length === 0 && <EmptyState icon={Icon} title="Nenhum item cadastrado" subtitle="Clique em Novo para adicionar." />}
+          {filtered.length === 0 && <EmptyState icon={Icon} title="Nenhum item encontrado" subtitle={search ? "Tente buscar por outro termo." : "Clique em Novo para adicionar."} />}
         </div>
       </Card>
       <AnimatePresence>
@@ -1024,6 +1043,7 @@ function EmpresasTerceiroView({ profile }: { profile: UserProfile }) {
 
 function TreinamentosView({ profile }: { profile: UserProfile }) {
   const [items, setItems] = useState<TipoTreinamento[]>([]);
+  const [search, setSearch] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ nome: '', validadeMeses: '12', escopo: 'personalizado', companyId: '' });
   const [companies, setCompanies] = useState<Company[]>([]);
@@ -1033,7 +1053,8 @@ function TreinamentosView({ profile }: { profile: UserProfile }) {
   const fetchAll = async () => { 
     try {
       const [t, c] = await Promise.all([api.get<TipoTreinamento[]>('/treinamentos/tipos'), api.get<Company[]>('/companies')]);
-      setItems(t || []); setCompanies(c || []);
+      const sorted = (t || []).sort((a, b) => (a.codigo || '').localeCompare(b.codigo || '', undefined, { numeric: true }));
+      setItems(sorted); setCompanies(c || []);
     } catch {} 
   };
 
@@ -1047,15 +1068,33 @@ function TreinamentosView({ profile }: { profile: UserProfile }) {
     catch (err: any) { alert(err.error || 'Erro.'); } finally { setSaving(false); }
   };
 
+  const filtered = items.filter(t => {
+    if (!search) return true;
+    const s = search.toLowerCase();
+    return t.nome.toLowerCase().includes(s) || t.codigo.toLowerCase().includes(s);
+  });
+
   return (
     <div className="max-w-4xl mx-auto space-y-6">
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Treinamentos</h1>
           <p className="text-sm text-slate-500 mt-0.5">Gerencie os treinamentos obrigatórios.</p>
         </div>
         <Button onClick={() => setShowForm(true)}><Plus size={16} /> Novo</Button>
       </div>
+
+      {/* Search Bar */}
+      <div className="relative">
+        <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+        <input 
+          value={search} 
+          onChange={e => setSearch(e.target.value)} 
+          placeholder="Buscar por código ou descrição de treinamento..."
+          className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 bg-white text-sm outline-none focus:ring-2 focus:ring-blue-500 transition-all" 
+        />
+      </div>
+
       <Card>
         <div className="overflow-x-auto">
           <table className="w-full">
@@ -1065,7 +1104,7 @@ function TreinamentosView({ profile }: { profile: UserProfile }) {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
-              {items.map(t => (
+              {filtered.map(t => (
                 <tr key={t.id} className="hover:bg-slate-50/50">
                   <td className="px-4 py-3 font-mono text-sm font-bold text-blue-600">{t.codigo}</td>
                   <td className="px-4 py-3 text-sm font-medium text-slate-900">{t.nome}</td>
@@ -1079,7 +1118,7 @@ function TreinamentosView({ profile }: { profile: UserProfile }) {
               ))}
             </tbody>
           </table>
-          {items.length === 0 && <EmptyState icon={BookOpen} title="Nenhum treinamento cadastrado" />}
+          {filtered.length === 0 && <EmptyState icon={BookOpen} title={search ? "Nenhum treinamento encontrado" : "Nenhum treinamento cadastrado"} subtitle={search ? "Tente buscar por outro código ou nome." : ""} />}
         </div>
       </Card>
       <AnimatePresence>
@@ -1120,6 +1159,7 @@ function CompaniesView({ profile }: { profile: UserProfile }) {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [allAdmins, setAllAdmins] = useState<UserProfile[]>([]);
   const [linkedAdmins, setLinkedAdmins] = useState<Record<string, UserProfile>>({});
+  const [search, setSearch] = useState('');
 
   // Modals
   const [showNewCompany, setShowNewCompany] = useState(false);
@@ -1250,7 +1290,12 @@ function CompaniesView({ profile }: { profile: UserProfile }) {
   // Separar matrizes de filiais
   const matrices = companies
     .filter(c => !c.parentId)
-    .filter(c => profile.role === 'master' || c.id === profile.companyId);
+    .filter(c => profile.role === 'master' || c.id === profile.companyId)
+    .filter(c => {
+      if (!search) return true;
+      const s = search.toLowerCase();
+      return c.name.toLowerCase().includes(s) || (c.cnpj || '').includes(s);
+    });
 
   const branches = companies.filter(c => !!c.parentId);
   const getBranches = (parentId: string) => branches.filter(b => b.parentId === parentId);
@@ -1272,6 +1317,17 @@ function CompaniesView({ profile }: { profile: UserProfile }) {
             <Plus size={16} /> Nova Empresa
           </Button>
         )}
+      </div>
+
+      {/* Search Bar */}
+      <div className="relative">
+        <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+        <input 
+          value={search} 
+          onChange={e => setSearch(e.target.value)} 
+          placeholder="Buscar por nome da empresa ou CNPJ..."
+          className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 bg-white text-sm outline-none focus:ring-2 focus:ring-blue-500 transition-all" 
+        />
       </div>
 
       {/* Company Cards */}
