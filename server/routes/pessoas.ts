@@ -149,7 +149,8 @@ router.post('/', async (req: AuthRequest, res: Response) => {
   try {
     const {
       companyId, tipoAcesso, foto, nomeCompleto, documento, empresaOrigemId, responsavelInterno,
-      celularAutorizado, notebookAutorizado, liberadoAte, descricaoAtividade,
+      celularAutorizado, celularImei, notebookAutorizado, notebookMarca, notebookPatrimonio,
+      liberadoAte, descricaoAtividade,
       atividadeId, asoDataRealizacao, epiObrigatorio, epiDescricao,
       treinamentos // ARRAY de treinamentos [{ treinamentoId, dataRealizacao }]
     } = req.body;
@@ -179,15 +180,17 @@ router.post('/', async (req: AuthRequest, res: Response) => {
     const pessoa = await queryOne<{ id: string }>(
       `INSERT INTO pessoas (
         company_id, tipo_acesso, foto, nome_completo, documento, empresa_origem_id, responsavel_interno,
-        celular_autorizado, notebook_autorizado, liberado_ate, descricao_atividade,
-        atividade_id, as_data_realizacao, epi_obrigatorio, epi_descricao, created_by
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+        celular_autorizado, celular_imei, notebook_autorizado, notebook_marca, notebook_patrimonio, 
+        liberado_ate, descricao_atividade, atividade_id, aso_data_realizacao, epi_obrigatorio, 
+        epi_descricao, created_by
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
       RETURNING id`,
       [
         companyId, tipoAcesso, foto, nomeCompleto, documento, empresaOrigemId || null, responsavelInterno,
-        celularAutorizado, notebookAutorizado, liberadoAte || null, descricaoAtividade,
+        celularAutorizado, celularImei || null, notebookAutorizado, notebookMarca || null, 
+        notebookPatrimonio || null, liberadoAte || null, descricaoAtividade,
         tipoAcesso === 'prestador' ? (atividadeId || null) : null,
-        tipoAcesso === 'prestador' ? (asoDataRealizacao || null) : null,
+        asoDataRealizacao || null,
         tipoAcesso === 'prestador' ? epiObrigatorio : false,
         tipoAcesso === 'prestador' ? epiDescricao : null,
         req.user!.userId
@@ -218,6 +221,70 @@ router.post('/', async (req: AuthRequest, res: Response) => {
   } catch (err: any) {
     console.error('POST /pessoas error:', err);
     res.status(500).json({ error: 'Erro ao salvar pessoa.' });
+  }
+});
+
+// ============================================================
+// PUT /api/pessoas/:id
+// ============================================================
+router.put('/:id', async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const {
+      companyId, tipoAcesso, foto, nomeCompleto, documento, empresaOrigemId, responsavelInterno,
+      celularAutorizado, celularImei, notebookAutorizado, notebookMarca, notebookPatrimonio,
+      liberadoAte, descricaoAtividade,
+      atividadeId, asoDataRealizacao, epiObrigatorio, epiDescricao,
+      treinamentos
+    } = req.body;
+
+    // Atualiza dados da pessoa
+    await query(
+      `UPDATE pessoas SET 
+        company_id = $1, tipo_acesso = $2, foto = $3, nome_completo = $4, documento = $5, 
+        empresa_origem_id = $6, responsavel_interno = $7, celular_autorizado = $8, 
+        celular_imei = $9, notebook_autorizado = $10, notebook_marca = $11, 
+        notebook_patrimonio = $12, liberado_ate = $13, descricao_atividade = $14, 
+        atividade_id = $15, aso_data_realizacao = $16, epi_obrigatorio = $17, 
+        epi_descricao = $18, updated_at = NOW()
+       WHERE id = $19`,
+      [
+        companyId, tipoAcesso, foto, nomeCompleto, documento, empresaOrigemId || null, responsavelInterno,
+        celularAutorizado, celularImei || null, notebookAutorizado, notebookMarca || null, 
+        notebookPatrimonio || null, liberadoAte || null, descricaoAtividade,
+        tipoAcesso === 'prestador' ? (atividadeId || null) : null,
+        asoDataRealizacao || null, 
+        tipoAcesso === 'prestador' ? epiObrigatorio : false,
+        tipoAcesso === 'prestador' ? epiDescricao : null,
+        id
+      ]
+    );
+
+    // Atualiza treinamentos (Remove antigos e insere novos)
+    if (tipoAcesso === 'prestador' && Array.isArray(treinamentos)) {
+      await query('DELETE FROM treinamentos_pessoa WHERE pessoa_id = $1', [id]);
+      for (const tr of treinamentos) {
+        if (!tr.treinamentoId || !tr.dataRealizacao) continue;
+        
+        const tipo = await queryOne<{ validade_meses: number }>('SELECT validade_meses FROM tipos_treinamento WHERE id = $1', [tr.treinamentoId]);
+        if (!tipo) continue;
+
+        const dateR = new Date(tr.dataRealizacao);
+        const dateV = new Date(dateR);
+        dateV.setMonth(dateV.getMonth() + tipo.validade_meses);
+
+        await query(
+          `INSERT INTO treinamentos_pessoa (pessoa_id, treinamento_id, data_realizacao, data_vencimento) 
+           VALUES ($1, $2, $3, $4)`,
+          [id, tr.treinamentoId, tr.dataRealizacao, dateV.toISOString().split('T')[0]]
+        );
+      }
+    }
+
+    res.json({ success: true });
+  } catch (err: any) {
+    console.error('PUT /pessoas error:', err);
+    res.status(500).json({ error: 'Erro ao atualizar pessoa.' });
   }
 });
 
