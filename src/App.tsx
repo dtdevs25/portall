@@ -856,29 +856,43 @@ function PessoasView({ profile }: { profile: UserProfile }) {
   };
 
   const calculateAutoExpiration = useCallback(() => {
-    if (form.tipoAcesso === 'visitante') {
-      if (!form.asoDataRealizacao) return '';
-      const d = new Date(form.asoDataRealizacao + 'T12:00:00');
-      d.setFullYear(d.getFullYear() + 1);
-      return d.toISOString().split('T')[0];
-    } else {
-      const dates: number[] = [];
-      if (form.asoDataRealizacao) {
-        const d = new Date(form.asoDataRealizacao + 'T12:00:00');
+    try {
+      const parseSafe = (dStr: string) => {
+        if (!dStr) return null;
+        // Limpa strings do Postgres (ex: "2024-04-20 00:00:00") para "2024-04-20"
+        const clean = dStr.split(' ')[0].split('T')[0];
+        const date = new Date(clean + 'T12:00:00');
+        return isNaN(date.getTime()) ? null : date;
+      };
+
+      if (form.tipoAcesso === 'visitante') {
+        const d = parseSafe(form.asoDataRealizacao);
+        if (!d) return '';
         d.setFullYear(d.getFullYear() + 1);
-        dates.push(d.getTime());
-      }
-      form.treinamentos.forEach(t => {
-        const tipo = treiTipos.find(tt => tt.id === t.treinamentoId);
-        if (tipo && t.dataRealizacao) {
-          const d = new Date(t.dataRealizacao + 'T12:00:00');
-          d.setMonth(d.getMonth() + (tipo.validadeMeses || 12));
-          dates.push(d.getTime());
+        return d.toISOString().split('T')[0];
+      } else {
+        const dates: number[] = [];
+        const asoDate = parseSafe(form.asoDataRealizacao);
+        if (asoDate) {
+          asoDate.setFullYear(asoDate.getFullYear() + 1);
+          dates.push(asoDate.getTime());
         }
-      });
-      if (dates.length === 0) return '';
-      const minDate = new Date(Math.min(...dates));
-      return minDate.toISOString().split('T')[0];
+        form.treinamentos.forEach(t => {
+          const tipo = treiTipos.find(tt => tt.id === t.treinamentoId);
+          const tDate = parseSafe(t.dataRealizacao);
+          if (tipo && tDate) {
+            tDate.setMonth(tDate.getMonth() + (tipo.validadeMeses || 12));
+            dates.push(tDate.getTime());
+          }
+        });
+        if (dates.length === 0) return '';
+        const minTime = Math.min(...dates);
+        if (isNaN(minTime)) return '';
+        return new Date(minTime).toISOString().split('T')[0];
+      }
+    } catch (e) {
+      console.error('Erro ao calcular expiração:', e);
+      return '';
     }
   }, [form.tipoAcesso, form.asoDataRealizacao, form.treinamentos, treiTipos]);
 
