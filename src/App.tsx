@@ -158,6 +158,32 @@ function Card({ children, className }: { children: React.ReactNode; className?: 
   return <div className={cn('bg-white rounded-2xl border border-slate-100 shadow-sm', className)}>{children}</div>;
 }
 
+function ConfirmModal({ title, message, onConfirm, onCancel, loading }: {
+  title: string; message: string; onConfirm: () => void; onCancel: () => void; loading?: boolean;
+}) {
+  return (
+    <Modal title={title} onClose={onCancel} size="md">
+      <div className="space-y-6">
+        <div className="flex items-center gap-4 p-4 bg-red-50 rounded-2xl border border-red-100 text-left">
+          <div className="w-12 h-12 rounded-xl bg-red-100 flex items-center justify-center shrink-0">
+            <AlertTriangle className="text-red-600" size={24} />
+          </div>
+          <div>
+            <p className="text-sm font-bold text-red-900">Ação Irreversível</p>
+            <p className="text-xs text-red-600 leading-relaxed">{message}</p>
+          </div>
+        </div>
+        <div className="flex gap-3">
+          <Button variant="ghost" className="flex-1" onClick={onCancel} disabled={loading}>Cancelar</Button>
+          <Button variant="danger" className="flex-1" onClick={onConfirm} disabled={loading}>
+            {loading ? 'Excluindo...' : 'Confirmar Exclusão'}
+          </Button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
 function EmptyState({ icon: Icon, title, subtitle }: { icon: any; title: string; subtitle?: string }) {
   return (
     <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
@@ -661,6 +687,8 @@ function PessoasView({ profile }: { profile: UserProfile }) {
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
 
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+
   useEffect(() => { fetchAll(); }, []);
 
   const fetchAll = async () => {
@@ -679,39 +707,51 @@ function PessoasView({ profile }: { profile: UserProfile }) {
   };
 
   const openNew = () => { setForm(emptyPessoaForm()); setEditTarget(null); setShowForm(true); };
+  
+  const openEdit = (p: Pessoa) => {
+    setEditTarget(p);
+    setForm({
+      tipoAcesso: p.tipoAcesso,
+      foto: p.foto || '',
+      nomeCompleto: p.nomeCompleto,
+      documento: p.documento,
+      empresaOrigemId: p.empresaOrigemId || '',
+      responsavelInterno: p.responsavelInterno,
+      celularAutorizado: p.celularAutorizado,
+      notebookAutorizado: p.notebookAutorizado,
+      liberadoAte: p.liberadoAte ? p.liberadoAte.split('T')[0] : '',
+      descricaoAtividade: p.descricaoAtividade || '',
+      asoDataRealizacao: p.asoDataRealizacao || '',
+      epiObrigatorio: p.epiObrigatorio,
+      epiDescricao: p.epiDescricao || '',
+      treinamentos: p.treinamentos ? p.treinamentos.map(t => ({ treinamentoId: t.treinamentoId, dataRealizacao: t.dataRealizacao })) : [],
+      companyId: p.companyId
+    });
+    setShowForm(true);
+  };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
     try {
       const payload = { ...form };
-
-      // Regras de cadastro
-      if (profile.role === 'admin') {
-        payload.role = 'viewer'; // Administradores só podem criar visualizadores
-        payload.companyId = form.companyId || profile.companyId; // Vincular à empresa do admin
-      }
-
-      if (editTarget) {
-        await api.put(`/users/${editTarget.uid || editTarget.id}`, payload);
-      } else {
-        await api.post('/users', payload);
-      }
-
+      if (editTarget) await api.put(`/pessoas/${editTarget.id}`, payload);
+      else await api.post('/pessoas', payload);
       fetchAll();
       setShowForm(false);
-      setEditTarget(null);
-      setForm({ email: '', displayName: '', role: 'viewer', companyId: '' });
-    } catch (err: any) {
-      alert(err.error || 'Erro ao salvar.');
-    } finally {
-      setSaving(false);
-    }
+    } catch (err: any) { alert(err.error || 'Erro ao salvar.'); }
+    finally { setSaving(false); }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Deseja excluir este cadastro?')) return;
-    try { await api.delete(`/pessoas/${id}`); fetchAll(); } catch (err: any) { alert(err.error || 'Erro.'); }
+  const confirmDelete = async () => {
+    if (!deleteId) return;
+    setSaving(true);
+    try { 
+      await api.delete(`/pessoas/${deleteId}`); 
+      fetchAll(); 
+      setDeleteId(null);
+    } catch (err: any) { alert(err.error || 'Erro.'); } 
+    finally { setSaving(false); }
   };
 
   const addTreinamento = () => setForm(f => ({ ...f, treinamentos: [...f.treinamentos, { treinamentoId: '', dataRealizacao: '' }] }));
@@ -783,7 +823,8 @@ function PessoasView({ profile }: { profile: UserProfile }) {
                   <td className="px-4 py-3"><StatusBadge status={p.statusAcesso} /></td>
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-end gap-1">
-                      <Button variant="ghost" size="sm" onClick={() => handleDelete(p.id)}><Trash2 size={14} /></Button>
+                      <Button variant="ghost" size="sm" onClick={() => openEdit(p)}><Pencil size={14} /></Button>
+                      <Button variant="ghost" size="sm" onClick={() => setDeleteId(p.id)}><Trash2 size={14} /></Button>
                     </div>
                   </td>
                 </tr>
@@ -879,6 +920,18 @@ function PessoasView({ profile }: { profile: UserProfile }) {
           </Modal>
         )}
       </AnimatePresence>
+
+      <AnimatePresence>
+        {deleteId && (
+          <ConfirmModal 
+            title="Excluir Cadastro"
+            message="Esta ação excluirá permanentemente os dados desta pessoa e seu histórico de acessos. Deseja continuar?"
+            onConfirm={confirmDelete}
+            onCancel={() => setDeleteId(null)}
+            loading={saving}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -897,13 +950,21 @@ function SimpleListView<T extends { id: string; name?: string; nome?: string }>(
   const [showForm, setShowForm] = useState(false);
   const [editItem, setEditItem] = useState<T | null>(null);
   const [search, setSearch] = useState('');
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => { fetchAll(); }, []);
   const fetchAll = async () => { try { setItems(await api.get<T[]>(endpoint)); } catch {} };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Deseja excluir este item?')) return;
-    try { await api.delete(`${endpoint}/${id}`); fetchAll(); } catch (err: any) { alert(err.error || 'Erro.'); }
+  const confirmDelete = async () => {
+    if (!deleteId) return;
+    setDeleting(true);
+    try { 
+      await api.delete(`${endpoint}/${deleteId}`); 
+      fetchAll(); 
+      setDeleteId(null);
+    } catch (err: any) { alert(err.error || 'Erro.'); } 
+    finally { setDeleting(false); }
   };
 
   const filtered = items.filter(item => {
@@ -949,7 +1010,7 @@ function SimpleListView<T extends { id: string; name?: string; nome?: string }>(
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-end gap-1">
                       <Button variant="ghost" size="sm" onClick={() => { setEditItem(item); setShowForm(true); }}><Pencil size={14} /></Button>
-                      <Button variant="ghost" size="sm" onClick={() => handleDelete(item.id)}><Trash2 size={14} /></Button>
+                      <Button variant="ghost" size="sm" onClick={() => setDeleteId(item.id)}><Trash2 size={14} /></Button>
                     </div>
                   </td>
                 </tr>
@@ -964,6 +1025,16 @@ function SimpleListView<T extends { id: string; name?: string; nome?: string }>(
           <Modal title={editItem ? 'Editar' : 'Novo'} onClose={() => setShowForm(false)}>
             {renderForm(editItem, () => { fetchAll(); setShowForm(false); }, () => setShowForm(false))}
           </Modal>
+        )}
+      <AnimatePresence>
+        {deleteId && (
+          <ConfirmModal 
+            title="Confirmar Exclusão"
+            message="Tem certeza que deseja excluir este item? Esta ação não poderá ser desfeita."
+            onConfirm={confirmDelete}
+            onCancel={() => setDeleteId(null)}
+            loading={deleting}
+          />
         )}
       </AnimatePresence>
     </div>
@@ -1160,6 +1231,7 @@ function CompaniesView({ profile }: { profile: UserProfile }) {
   const [allAdmins, setAllAdmins] = useState<UserProfile[]>([]);
   const [linkedAdmins, setLinkedAdmins] = useState<Record<string, UserProfile>>({});
   const [search, setSearch] = useState('');
+  const [deleteTarget, setDeleteTarget] = useState<Company | null>(null);
 
   // Modals
   const [showNewCompany, setShowNewCompany] = useState(false);
@@ -1281,10 +1353,15 @@ function CompaniesView({ profile }: { profile: UserProfile }) {
     finally { setSaving(false); }
   };
 
-  const handleDeleteCompany = async (id: string) => {
-    if (!confirm('Excluir esta empresa? Todas as filiais e dados associados serão removidos.')) return;
-    try { await api.delete(`/companies/${id}`); fetchAll(); }
-    catch (err: any) { alert(err.error || 'Erro ao excluir.'); }
+  const confirmDeleteCompany = async () => {
+    if (!deleteTarget) return;
+    setSaving(true);
+    try { 
+      await api.delete(`/companies/${deleteTarget.id}`); 
+      fetchAll(); 
+      setDeleteTarget(null);
+    } catch (err: any) { alert(err.error || 'Erro ao excluir.'); } 
+    finally { setSaving(false); }
   };
 
   // Separar matrizes de filiais
@@ -1405,7 +1482,7 @@ function CompaniesView({ profile }: { profile: UserProfile }) {
                     <UserCog size={14} />
                   </button>
                   <button
-                    onClick={() => handleDeleteCompany(company.id)}
+                    onClick={() => setDeleteTarget(company)}
                     className="p-1.5 rounded-xl text-slate-300 hover:text-red-500 hover:bg-red-50 transition-all"
                     title="Excluir Empresa"
                   >
@@ -1484,7 +1561,7 @@ function CompaniesView({ profile }: { profile: UserProfile }) {
                           <UserCog size={14} />
                         </button>
                         <button
-                          onClick={() => handleDeleteCompany(branch.id)}
+                          onClick={() => setDeleteTarget(branch)}
                           className="p-2 rounded-xl text-slate-300 hover:text-red-500 hover:bg-red-50 transition-all opacity-0 group-hover:opacity-100"
                           title="Excluir Unidade"
                         >
@@ -1629,6 +1706,16 @@ function CompaniesView({ profile }: { profile: UserProfile }) {
               </div>
             </div>
           </Modal>
+        )}
+      <AnimatePresence>
+        {deleteTarget && (
+          <ConfirmModal 
+            title="Excluir Empresa"
+            message={`Deseja realmente excluir "${deleteTarget.name}"? Todas as filiais e dados associados a esta unidade serão removidos permanentemente.`}
+            onConfirm={confirmDeleteCompany}
+            onCancel={() => setDeleteTarget(null)}
+            loading={saving}
+          />
         )}
       </AnimatePresence>
     </div>
@@ -1825,8 +1912,10 @@ function UsuariosView({ profile }: { profile: UserProfile }) {
     manageAllBranches: false 
   });
 
-  useEffect(() => { fetchAll(); }, []);
+  const [deleteTarget, setDeleteTarget] = useState<UserProfile | null>(null);
 
+  useEffect(() => { fetchAll(); }, []);
+  
   const fetchAll = async () => {
     try {
       const [u, c] = await Promise.all([
@@ -1880,28 +1969,19 @@ function UsuariosView({ profile }: { profile: UserProfile }) {
       }
       fetchAll();
       setShowForm(false);
-      setEditTarget(null);
-      setForm({ 
-        email: '', 
-        displayName: '', 
-        role: 'viewer', 
-        companyId: '', 
-        managedCompanyIds: [], 
-        manageAllBranches: false 
-      });
-    } catch (err: any) {
-      alert(err.error || 'Erro ao salvar.');
-    } finally {
-      setSaving(false);
-    }
+    } catch (err: any) { alert(err.error || 'Erro ao salvar.'); }
+    finally { setSaving(false); }
   };
 
-  const handleDelete = async (user: UserProfile) => {
-    if (!confirm(`Deseja excluir o usuário ${user.displayName || user.email}?`)) return;
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    setSaving(true);
     try {
-      await api.delete(`/users/${user.uid || user.id}`);
+      await api.delete(`/users/${deleteTarget.uid || deleteTarget.id}`);
       fetchAll();
+      setDeleteTarget(null);
     } catch (err: any) { alert(err.error || 'Erro ao excluir.'); }
+    finally { setSaving(false); }
   };
 
   const roleLabel = (role: string) => {
@@ -2011,7 +2091,7 @@ function UsuariosView({ profile }: { profile: UserProfile }) {
                         <Button variant="ghost" size="sm" onClick={() => openEdit(user)}><Pencil size={14} /></Button>
                       )}
                       {profile.role === 'master' && (user.uid || user.id) !== (profile.uid || profile.id) && (
-                        <Button variant="ghost" size="sm" onClick={() => handleDelete(user)}><Trash2 size={14} /></Button>
+                        <Button variant="ghost" size="sm" onClick={() => setDeleteTarget(user)}><Trash2 size={14} /></Button>
                       )}
                     </div>
                   </td>
@@ -2119,6 +2199,16 @@ function UsuariosView({ profile }: { profile: UserProfile }) {
               </div>
             </form>
           </Modal>
+        )}
+      <AnimatePresence>
+        {deleteTarget && (
+          <ConfirmModal 
+            title="Excluir Usuário"
+            message={`Deseja realmente remover o acesso de "${deleteTarget.displayName || deleteTarget.email}"? Esta ação não poderá ser desfeita.`}
+            onConfirm={confirmDelete}
+            onCancel={() => setDeleteTarget(null)}
+            loading={saving}
+          />
         )}
       </AnimatePresence>
     </div>
