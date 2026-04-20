@@ -640,7 +640,8 @@ function PhotoPicker({ value, onChange }: { value: string; onChange: (v: string)
 type PessoaForm = {
   tipoAcesso: string; foto: string; nomeCompleto: string; documento: string;
   empresaOrigemId: string; responsavelInterno: string; celularAutorizado: boolean;
-  notebookAutorizado: boolean; liberadoAte: string; descricaoAtividade: string;
+  celularImei: string; notebookAutorizado: boolean; notebookInfo: string;
+  liberadoAte: string; descricaoAtividade: string;
   atividadeId: string; asoDataRealizacao: string; epiObrigatorio: boolean; epiDescricao: string;
   treinamentos: { treinamentoId: string; dataRealizacao: string }[];
   companyId: string;
@@ -649,7 +650,8 @@ type PessoaForm = {
 const emptyPessoaForm = (): PessoaForm => ({
   tipoAcesso: 'visitante', foto: '', nomeCompleto: '', documento: '',
   empresaOrigemId: '', responsavelInterno: '', celularAutorizado: false,
-  notebookAutorizado: false, liberadoAte: '', descricaoAtividade: '',
+  celularImei: '', notebookAutorizado: false, notebookInfo: '',
+  liberadoAte: '', descricaoAtividade: '',
   atividadeId: '',
   asoDataRealizacao: '', epiObrigatorio: false, epiDescricao: '',
   treinamentos: [],
@@ -754,7 +756,9 @@ function PessoasView({ profile }: { profile: UserProfile }) {
       empresaOrigemId: p.empresaOrigemId || '',
       responsavelInterno: p.responsavelInterno,
       celularAutorizado: p.celularAutorizado,
+      celularImei: p.celularImei || '',
       notebookAutorizado: p.notebookAutorizado,
+      notebookInfo: p.notebookInfo || '',
       liberadoAte: p.liberadoAte ? p.liberadoAte.split('T')[0] : '',
       descricaoAtividade: p.descricaoAtividade || '',
       asoDataRealizacao: p.asoDataRealizacao || '',
@@ -953,15 +957,26 @@ function PessoasView({ profile }: { profile: UserProfile }) {
                     </div>
                   </div>
                 )}
-                <Input label="Liberado Até" type="date" value={form.liberadoAte} onChange={v => setForm(f => ({ ...f, liberadoAte: v }))} hint="Definido automaticamente pelo ASO" />
+                <Input label="Último ASO (Calculado)" type="date" value={form.liberadoAte} onChange={v => setForm(f => ({ ...f, liberadoAte: v }))} hint="Data de expiração do acesso" />
                 <Input label="Descrição da Atividade / Visita" value={form.descricaoAtividade} onChange={v => setForm(f => ({ ...f, descricaoAtividade: v }))} placeholder="Descreva o motivo do acesso" />
               </div>
 
               {/* Permissões */}
               <div className="p-4 bg-slate-50 rounded-2xl space-y-3">
-                <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Permissões de Acesso</h4>
-                <Toggle label="Celular autorizado" checked={form.celularAutorizado} onChange={v => setForm(f => ({ ...f, celularAutorizado: v }))} />
-                <Toggle label="Notebook autorizado" checked={form.notebookAutorizado} onChange={v => setForm(f => ({ ...f, notebookAutorizado: v }))} />
+                <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Permissões e Objetos</h4>
+                <div className="space-y-3">
+                  <Toggle label="Celular autorizado" checked={form.celularAutorizado} onChange={v => setForm(f => ({ ...f, celularAutorizado: v, celularImei: v ? f.celularImei : '' }))} />
+                  {form.celularAutorizado && (
+                    <Input label="IMEI do Celular" value={form.celularImei} onChange={v => setForm(f => ({ ...f, celularImei: v }))} placeholder="Ex: 354678..." />
+                  )}
+                  
+                  <div className="border-t border-slate-100 pt-3">
+                    <Toggle label="Notebook autorizado" checked={form.notebookAutorizado} onChange={v => setForm(f => ({ ...f, notebookAutorizado: v, notebookInfo: v ? f.notebookInfo : '' }))} />
+                    {form.notebookAutorizado && (
+                      <Input label="Dados do Notebook (Marca + Etiqueta)" value={form.notebookInfo} onChange={v => setForm(f => ({ ...f, notebookInfo: v }))} placeholder="Ex: Dell - TAG 123456" />
+                    )}
+                  </div>
+                </div>
               </div>
 
               {/* Prestador específico */}
@@ -978,25 +993,48 @@ function PessoasView({ profile }: { profile: UserProfile }) {
                   {/* Treinamentos */}
                   <div>
                     <div className="flex items-center justify-between mb-2">
-                      <h5 className="text-xs font-bold text-blue-600 uppercase tracking-wider">Treinamentos</h5>
-                      <Button variant="ghost" size="sm" onClick={addTreinamento}><Plus size={14} /> Adicionar</Button>
+                      <h5 className="text-xs font-bold text-blue-600 uppercase tracking-wider">Treinamentos do Prestador</h5>
+                      <Button variant="ghost" size="sm" onClick={addTreinamento}><Plus size={14} /> Vincular Treinamento</Button>
                     </div>
-                    <div className="space-y-2">
-                      {form.treinamentos.map((t, i) => (
-                        <div key={i} className="flex gap-2 items-end">
-                          <div className="flex-1">
-                            <Select label="" value={t.treinamentoId} onChange={v => updateTreinamento(i, 'treinamentoId', v)}>
-                              <option value="">— Tipo —</option>
-                              {treiTipos.map(tt => <option key={tt.id} value={tt.id}>{tt.codigo} — {tt.nome}</option>)}
-                            </Select>
+                    <div className="space-y-3">
+                      {form.treinamentos.map((t, i) => {
+                        const tipo = treiTipos.find(tt => tt.id === t.treinamentoId);
+                        let statusNode = null;
+                        if (tipo && t.dataRealizacao) {
+                          const valMeses = tipo.validadeMeses || 12;
+                          const d = new Date(t.dataRealizacao + 'T12:00:00');
+                          d.setMonth(d.getMonth() + valMeses);
+                          const isExpired = d < new Date();
+                          statusNode = (
+                            <span className={cn('text-[9px] font-bold px-1.5 py-0.5 rounded uppercase', isExpired ? 'bg-red-100 text-red-600' : 'bg-emerald-100 text-emerald-600')}>
+                              {isExpired ? 'Vencido' : 'Válido'} até {d.toLocaleDateString('pt-BR')}
+                            </span>
+                          );
+                        }
+
+                        return (
+                          <div key={i} className="p-3 bg-white rounded-xl border border-blue-100 space-y-2">
+                            <div className="flex justify-between items-start">
+                              <div className="flex-1">
+                                <Select label="Tipo de Treinamento" value={t.treinamentoId} onChange={v => updateTreinamento(i, 'treinamentoId', v)}>
+                                  <option value="">— Selecione —</option>
+                                  {treiTipos.map(tt => <option key={tt.id} value={tt.id}>{tt.codigo} — {tt.nome}</option>)}
+                                </Select>
+                              </div>
+                              <Button variant="ghost" size="sm" className="mt-6 ml-2" onClick={() => removeTreinamento(i)}><Trash2 size={14} className="text-red-400" /></Button>
+                            </div>
+                            <div className="flex items-center gap-4">
+                              <div className="flex-1">
+                                <Input label="Data de Realização" type="date" value={t.dataRealizacao} onChange={v => updateTreinamento(i, 'dataRealizacao', v)} />
+                              </div>
+                              <div className="flex-1 pt-4 text-right">
+                                {statusNode}
+                              </div>
+                            </div>
                           </div>
-                          <div className="flex-1">
-                            <Input label="" type="date" value={t.dataRealizacao} onChange={v => updateTreinamento(i, 'dataRealizacao', v)} />
-                          </div>
-                          <Button variant="ghost" size="sm" onClick={() => removeTreinamento(i)}><X size={14} /></Button>
-                        </div>
-                      ))}
-                      {form.treinamentos.length === 0 && <p className="text-xs text-slate-400 italic">Nenhum treinamento adicionado.</p>}
+                        );
+                      })}
+                      {form.treinamentos.length === 0 && <p className="text-xs text-slate-400 italic">Nenhum treinamento vinculado. Adicione as capacitações necessárias.</p>}
                     </div>
                   </div>
                 </div>

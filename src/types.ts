@@ -74,7 +74,9 @@ export interface Pessoa {
   responsavelInterno: string;
   
   celularAutorizado: boolean;
+  celularImei?: string;
   notebookAutorizado: boolean;
+  notebookInfo?: string;
   liberadoAte?: string; // Data ISO
   descricaoAtividade?: string;
   
