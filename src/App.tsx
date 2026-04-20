@@ -687,26 +687,39 @@ function PortariaView({ profile }: { profile: UserProfile }) {
 
 function PhotoPicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   const fileRef = useRef<HTMLInputElement>(null);
+  const [loading, setLoading] = useState(false);
 
-  const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => onChange(reader.result as string);
-    reader.readAsDataURL(file);
+    
+    setLoading(true);
+    try {
+      const res = await api.uploadFile(file);
+      onChange(res.url);
+    } catch (err: any) {
+      alert(err.error || 'Erro ao fazer upload da imagem.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <div className="space-y-1">
       <label className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Foto</label>
       <div className="flex gap-3 items-end">
-        <div className={cn('w-24 h-24 rounded-2xl border-2 border-dashed flex items-center justify-center overflow-hidden',
+        <div className={cn('w-24 h-24 rounded-2xl border-2 border-dashed flex items-center justify-center overflow-hidden relative',
           value ? 'border-blue-400' : 'border-slate-300 bg-slate-50')}>
           {value ? <img src={value} alt="foto" className="w-full h-full object-cover" /> : <Camera size={24} className="text-slate-400" />}
+          {loading && (
+            <div className="absolute inset-0 bg-white/60 backdrop-blur-sm flex items-center justify-center">
+              <RefreshCw size={20} className="text-blue-600 animate-spin" />
+            </div>
+          )}
         </div>
         <div className="space-y-2">
-          <Button variant="ghost" size="sm" onClick={() => fileRef.current?.click()}>
-            <Upload size={14} /> Carregar arquivo
+          <Button variant="ghost" size="sm" onClick={() => fileRef.current?.click()} disabled={loading}>
+            <Upload size={14} /> {loading ? 'Subindo...' : 'Carregar arquivo'}
           </Button>
           <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFile} />
         </div>

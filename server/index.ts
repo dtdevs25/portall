@@ -13,6 +13,8 @@ import presencasRoutes from './routes/presencas.js';
 import treinamentosRoutes from './routes/treinamentos.js';
 import empresasTerceiroRoutes from './routes/empresasTerceiro.js';
 import usersRoutes from './routes/users.js';
+import uploadRoutes from './routes/upload.js';
+import { ensureBucket } from './minioClient.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -119,6 +121,7 @@ app.use('/api/presencas', presencasRoutes);
 app.use('/api/treinamentos', treinamentosRoutes);
 app.use('/api/empresas-terceiro', empresasTerceiroRoutes);
 app.use('/api/users', usersRoutes);
+app.use('/api/upload', uploadRoutes);
 
 // ============================================================
 // Health check (para CapRover)
@@ -160,6 +163,7 @@ app.use((err: Error, _req: express.Request, res: express.Response, _next: expres
 async function start() {
   try {
     await initDB();
+    await ensureBucket();
     
     app.listen(PORT, '0.0.0.0', () => {
       console.log('');
