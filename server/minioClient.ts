@@ -11,6 +11,7 @@ const accessKey = process.env.MINIO_ACCESS_KEY || '';
 const secretKey = process.env.MINIO_SECRET_KEY || '';
 const bucketName = process.env.MINIO_BUCKET || 'fotos-portall';
 const useSSL = process.env.MINIO_USE_SSL === 'true';
+const publicUrl = process.env.MINIO_PUBLIC_URL || (useSSL ? `https://${endPoint}` : `http://${endPoint}`);
 
 export const minioClient = new Minio.Client({
   endPoint,
@@ -21,6 +22,7 @@ export const minioClient = new Minio.Client({
 });
 
 export const MINIO_BUCKET = bucketName;
+export const MINIO_PUBLIC_BASE = publicUrl.replace(/\/$/, ''); // Remove barra final se houver
 
 export async function ensureBucket() {
   const exists = await minioClient.bucketExists(MINIO_BUCKET);

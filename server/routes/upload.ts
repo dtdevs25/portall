@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import multer from 'multer';
-import { minioClient, MINIO_BUCKET } from '../minioClient.js';
+import { minioClient, MINIO_BUCKET, MINIO_PUBLIC_BASE } from '../minioClient.js';
 import { requireAuth } from '../auth/middleware.js';
 import path from 'path';
 import crypto from 'crypto';
@@ -26,10 +26,7 @@ router.post('/', requireAuth, upload.single('foto'), async (req, res) => {
       { 'Content-Type': file.mimetype }
     );
 
-    // Build the public URL
-    const protocol = process.env.MINIO_USE_SSL === 'true' ? 'https' : 'http';
-    const endpoint = process.env.MINIO_ENDPOINT || 'minio.ctdibrasil.com.br';
-    const publicUrl = `${protocol}://${endpoint}/${MINIO_BUCKET}/${filename}`;
+    const publicUrl = `${MINIO_PUBLIC_BASE}/${MINIO_BUCKET}/${filename}`;
 
     res.json({ url: publicUrl });
   } catch (err: any) {
