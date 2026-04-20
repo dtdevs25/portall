@@ -1026,6 +1026,8 @@ function SimpleListView<T extends { id: string; name?: string; nome?: string }>(
             {renderForm(editItem, () => { fetchAll(); setShowForm(false); }, () => setShowForm(false))}
           </Modal>
         )}
+      </AnimatePresence>
+
       <AnimatePresence>
         {deleteId && (
           <ConfirmModal 
@@ -1707,6 +1709,8 @@ function CompaniesView({ profile }: { profile: UserProfile }) {
             </div>
           </Modal>
         )}
+      </AnimatePresence>
+
       <AnimatePresence>
         {deleteTarget && (
           <ConfirmModal 
@@ -2200,6 +2204,8 @@ function UsuariosView({ profile }: { profile: UserProfile }) {
             </form>
           </Modal>
         )}
+      </AnimatePresence>
+
       <AnimatePresence>
         {deleteTarget && (
           <ConfirmModal 
