@@ -163,7 +163,12 @@ app.use((err: Error, _req: express.Request, res: express.Response, _next: expres
 async function start() {
   try {
     await initDB();
-    await ensureBucket();
+    try {
+      await ensureBucket();
+      console.log('✅ MinIO Bucket verificado com sucesso.');
+    } catch (err: any) {
+      console.warn('⚠️ Falha ao inicializar MinIO (fotos podem não funcionar):', err.message);
+    }
     
     app.listen(PORT, '0.0.0.0', () => {
       console.log('');

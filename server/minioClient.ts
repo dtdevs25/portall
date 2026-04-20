@@ -3,6 +3,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 const endPoint = process.env.MINIO_ENDPOINT || 'minio.ctdibrasil.com.br';
+const port = process.env.MINIO_PORT ? parseInt(process.env.MINIO_PORT) : undefined;
 const accessKey = process.env.MINIO_ACCESS_KEY || '';
 const secretKey = process.env.MINIO_SECRET_KEY || '';
 const bucketName = process.env.MINIO_BUCKET || 'fotos-portall';
@@ -10,6 +11,7 @@ const useSSL = process.env.MINIO_USE_SSL === 'true';
 
 export const minioClient = new Minio.Client({
   endPoint,
+  port,
   useSSL,
   accessKey,
   secretKey,
