@@ -39,10 +39,33 @@ async function request<T>(method: string, path: string, body?: any): Promise<T> 
     } catch {
       errText = `Erro ${res.status}: O servidor recusou o arquivo (provavelmente muito grande).`;
     }
+    console.error('Falha na requisição:', errText);
     throw { error: errText };
   }
 
   if (res.status === 204) return undefined as any;
+  return res.json();
+}
+
+export async function uploadFile(formData: FormData): Promise<any> {
+  const token = getToken();
+  const res = await fetch(`${API_BASE}/upload`, {
+    method: 'POST',
+    headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+    body: formData
+  });
+
+  if (!res.ok) {
+    let errText = '';
+    try {
+      const errJson = await res.json();
+      errText = errJson.error || errJson.message || `Erro ${res.status}`;
+    } catch {
+      errText = `Erro ${res.status}: O servidor não respondeu corretamente (pode ser o limite de tamanho).`;
+    }
+    console.error('Falha no Upload:', errText);
+    throw { error: errText };
+  }
   return res.json();
 }
 
@@ -51,4 +74,9 @@ export const api = {
   post: <T>(path: string, body: any) => request<T>('POST', path, body),
   put: <T>(path: string, body: any) => request<T>('PUT', path, body),
   delete: <T>(path: string) => request<T>('DELETE', path),
+  uploadFile: (file: File) => {
+    const formData = new FormData();
+    formData.append('foto', file);
+    return uploadFile(formData);
+  }
 };
