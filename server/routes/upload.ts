@@ -31,7 +31,9 @@ router.post('/', requireAuth, upload.single('foto'), async (req, res) => {
     res.json({ url: publicUrl });
   } catch (err: any) {
     console.error('Erro no upload para MinIO:', err);
-    res.status(500).json({ error: 'Erro ao processar upload.' });
+    // Retorna o erro específico para ajudar no diagnóstico
+    const msg = err.message || 'Erro ao processar upload.';
+    res.status(500).json({ error: `MinIO Error: ${msg}` });
   }
 });
 
