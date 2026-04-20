@@ -1146,7 +1146,9 @@ function PessoasView({ profile }: { profile: UserProfile }) {
                               <div className="flex-1">
                                 <Select label="Tipo de Treinamento" value={t.treinamentoId} onChange={v => updateTreinamento(i, 'treinamentoId', v)} required>
                                   <option value="">— Selecione —</option>
-                                  {treiTipos.map(tt => <option key={tt.id} value={tt.id}>{tt.codigo} — {tt.nome}</option>)}
+                                  {[...treiTipos].sort((a, b) => (a.codigo || '').localeCompare(b.codigo || '')).map(tt => (
+                                    <option key={tt.id} value={tt.id}>{tt.codigo} — {tt.nome}</option>
+                                  ))}
                                 </Select>
                               </div>
                               <Button variant="ghost" size="sm" className="mt-6 ml-2" onClick={() => removeTreinamento(i)}><Trash2 size={14} className="text-red-400" /></Button>
