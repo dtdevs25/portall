@@ -43,6 +43,20 @@ function statusLabel(s?: StatusAcesso) {
   return '—';
 }
 
+function maskLGPD(doc: string) {
+  if (!doc) return '—';
+  const digits = doc.replace(/\D/g, '');
+  const digitCount = digits.length;
+  let currentDigit = 0;
+  return doc.split('').map(char => {
+    if (/\d/.test(char)) {
+      currentDigit++;
+      if (currentDigit <= digitCount - 3) return '*';
+    }
+    return char;
+  }).join('');
+}
+
 function StatusBadge({ status }: { status?: StatusAcesso }) {
   const cfg = {
     liberado: { bg: 'bg-emerald-100', text: 'text-emerald-700', dot: 'bg-emerald-500', label: 'Liberado' },
@@ -708,39 +722,56 @@ function PortariaView({ profile }: { profile: UserProfile }) {
               <div className="grid grid-cols-2 gap-3">
                 {[
                   { label: 'Tipo de Acesso', value: selected.tipoAcesso === 'visitante' ? 'Visitante' : 'Prestador de Serviço' },
-                  { label: 'Documento', value: selected.documento },
+                  { 
+                    label: selected.documento.replace(/\D/g, '').length === 11 ? 'CPF (LGPD)' : 'RG/Doc (LGPD)', 
+                    value: maskLGPD(selected.documento) 
+                  },
                   { label: 'Responsável Interno', value: selected.responsavelInterno },
                   { label: 'Liberado Até', value: fmtDate(selected.liberadoAte) },
                   { label: 'Celular Autorizado', value: selected.celularAutorizado ? 'Sim' : 'Não' },
                   { label: 'Notebook Autorizado', value: selected.notebookAutorizado ? 'Sim' : 'Não' },
                   ...(selected.tipoAcesso === 'prestador' ? [
-                    { label: 'ASO', value: fmtDate(selected.asoDataRealizacao) },
+                    { label: 'ASO / Saúde Ocupacional', value: fmtDate(selected.asoDataRealizacao) },
                     { label: 'EPI Obrigatório', value: selected.epiObrigatorio ? `Sim — ${selected.epiDescricao || ''}` : 'Não' },
-                    { label: 'Atividade', value: selected.atividadeNome || '—' },
+                    { label: 'Atividade Principal', value: selected.atividadeNome || '—' },
                   ] : []),
                 ].map(({ label, value }) => (
-                  <div key={label} className="bg-slate-50 rounded-xl p-3">
-                    <p className="text-xs text-slate-400 font-medium">{label}</p>
-                    <p className="text-sm font-semibold text-slate-800 mt-0.5">{value}</p>
+                  <div key={label} className="bg-slate-50 rounded-xl p-3 border border-slate-100">
+                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">{label}</p>
+                    <p className="text-sm font-semibold text-slate-800 mt-1">{value}</p>
                   </div>
                 ))}
               </div>
 
               {/* Treinamentos */}
               {selected.tipoAcesso === 'prestador' && selected.treinamentos && selected.treinamentos.length > 0 && (
-                <div>
-                  <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Treinamentos</h4>
-                  <div className="space-y-2">
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                    <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest">Treinamentos e Validades</h4>
+                    <ShieldCheck size={16} className="text-blue-500" />
+                  </div>
+                  <div className="grid gap-2">
                     {selected.treinamentos.map((t, i) => {
                       const st = t.statusTreinamento;
-                      const col = st === 'Valido' ? 'text-emerald-600 bg-emerald-50' : st === 'Vencido' ? 'text-red-600 bg-red-50' : 'text-amber-600 bg-amber-50';
+                      const isVencido = st === 'Vencido';
+                      const isAVencer = st === 'A Vencer';
+                      const col = isVencido ? 'border-red-200 bg-red-50' : isAVencer ? 'border-amber-200 bg-amber-50' : 'border-emerald-100 bg-emerald-50/50';
+                      
                       return (
-                        <div key={i} className="flex items-center justify-between py-2 px-3 rounded-xl bg-slate-50">
-                          <div>
-                            <p className="text-sm font-medium text-slate-900">{t.treinamentoNome}</p>
-                            <p className="text-xs text-slate-400">Vence em: {fmtDate(t.dataVencimento)}</p>
+                        <div key={i} className={cn('flex items-center justify-between p-3 rounded-xl border transition-all', col)}>
+                          <div className="flex items-center gap-3">
+                            <div className={cn('p-2 rounded-lg', isVencido ? 'bg-red-100 text-red-600' : 'bg-emerald-100 text-emerald-600')}>
+                              {isVencido ? <AlertTriangle size={16} /> : <CheckCircle2 size={16} />}
+                            </div>
+                            <div>
+                              <p className="text-sm font-bold text-slate-800">{t.treinamentoNome}</p>
+                              <p className="text-[11px] text-slate-500 font-medium">Vencimento: <span className="font-bold">{fmtDate(t.dataVencimento)}</span></p>
+                            </div>
                           </div>
-                          <span className={cn('text-xs font-bold px-2.5 py-1 rounded-full', col)}>{st}</span>
+                          <span className={cn('text-[10px] font-black uppercase px-2 py-1 rounded-md shadow-sm', 
+                            isVencido ? 'bg-red-600 text-white' : isAVencer ? 'bg-amber-500 text-white' : 'bg-emerald-600 text-white')}>
+                            {st}
+                          </span>
                         </div>
                       );
                     })}
