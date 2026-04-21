@@ -490,7 +490,6 @@ function Sidebar({ activeTab, setActiveTab, profile, collapsed, setCollapsed }: 
         </nav>
       </div>
     </motion.aside>
-
   );
 }
 
@@ -501,6 +500,7 @@ function PortariaView({ profile }: { profile: UserProfile }) {
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<Pessoa | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
+  const [viewType, setViewType] = useState<'card' | 'list'>('card');
 
   useEffect(() => { fetchPessoas(); }, []);
 
@@ -539,11 +539,11 @@ function PortariaView({ profile }: { profile: UserProfile }) {
 
       {/* Stats */}
       <div className="grid grid-cols-3 gap-4">
-        {([
+        {[
           { label: 'Liberados', count: statusCount.liberado, color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-200' },
           { label: 'A Vencer',  count: statusCount.a_vencer,  color: 'text-amber-600',   bg: 'bg-amber-50',   border: 'border-amber-200' },
           { label: 'Bloqueados',count: statusCount.bloqueado, color: 'text-red-600',     bg: 'bg-red-50',     border: 'border-red-200' },
-        ]).map(s => (
+        ].map(s => (
           <Card key={s.label} className={cn('p-4 border', s.border, s.bg)}>
             <p className={cn('text-3xl font-black', s.color)}>{s.count}</p>
             <p className={cn('text-sm font-medium mt-0.5', s.color)}>{s.label}</p>
@@ -551,34 +551,157 @@ function PortariaView({ profile }: { profile: UserProfile }) {
         ))}
       </div>
 
-      {/* Search */}
-      <div className="relative">
-        <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar por nome ou empresa..."
-          className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 bg-white text-sm outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+      {/* Search & Toggle */}
+      <div className="flex flex-wrap items-center gap-4">
+        <div className="relative flex-1 min-w-[280px]">
+          <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+          <input 
+            value={search} 
+            onChange={e => setSearch(e.target.value)} 
+            placeholder="Buscar por nome ou empresa..."
+            className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 bg-white text-sm outline-none focus:ring-2 focus:ring-blue-500 transition-all shadow-sm" 
+          />
+        </div>
+        <div className="flex bg-white p-1 rounded-xl border border-slate-200 shadow-sm">
+          <button 
+            onClick={() => setViewType('card')}
+            className={cn('p-2 rounded-lg transition-all', viewType === 'card' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-600')}
+            title="Visualização em Cards"
+          >
+            <LayoutGrid size={20} />
+          </button>
+          <button 
+            onClick={() => setViewType('list')}
+            className={cn('p-2 rounded-lg transition-all', viewType === 'list' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-600')}
+            title="Visualização em Lista"
+          >
+            <List size={20} />
+          </button>
+        </div>
       </div>
-
-      {/* List */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {filtered.map(p => (
-          <button key={p.id} onClick={() => setSelected(p)}
-            className={cn(
-              'bg-white rounded-2xl border-2 p-4 text-left transition-all hover:shadow-md hover:-translate-y-0.5',
-              p.statusAcesso === 'liberado'  ? 'border-emerald-200 hover:border-emerald-400' :
-              p.statusAcesso === 'a_vencer'  ? 'border-amber-200 hover:border-amber-400' :
-                                               'border-red-200 hover:border-red-400'
-            )}>
-            <div className="flex items-center gap-3 mb-3">
-              {p.foto ? (
-                <img src={p.foto} alt={p.nomeCompleto} className="w-12 h-12 rounded-xl object-cover border-2 border-white shadow" />
-              ) : (
-                <div className={cn('w-12 h-12 rounded-xl flex items-center justify-center text-lg font-bold text-white',
-                  p.statusAcesso === 'liberado' ? 'bg-emerald-500' : p.statusAcesso === 'a_vencer' ? 'bg-amber-500' : 'bg-red-500')}>
-                  {p.nomeCompleto[0]}
+      
+      {/* List / Cards Content */}
+      <AnimatePresence mode="wait">
+        {viewType === 'card' ? (
+          <motion.div 
+            key="grid"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
+          >
+            {filtered.map(p => (
+              <button key={p.id} onClick={() => setSelected(p)}
+                className={cn(
+                  'bg-white rounded-2xl border-2 p-4 text-left transition-all hover:shadow-md hover:-translate-y-0.5',
+                  p.statusAcesso === 'liberado'  ? 'border-emerald-200 hover:border-emerald-400' :
+                  p.statusAcesso === 'a_vencer'  ? 'border-amber-200 hover:border-amber-400' :
+                                                   'border-red-200 hover:border-red-400'
+                )}>
+                <div className="flex items-center gap-3 mb-3">
+                  {p.foto ? (
+                    <img src={p.foto} alt={p.nomeCompleto} className="w-12 h-12 rounded-xl object-cover border-2 border-white shadow" />
+                  ) : (
+                    <div className={cn('w-12 h-12 rounded-xl flex items-center justify-center text-lg font-bold text-white',
+                      p.statusAcesso === 'liberado' ? 'bg-emerald-500' : p.statusAcesso === 'a_vencer' ? 'bg-amber-500' : 'bg-red-500')}>
+                      {p.nomeCompleto[0]}
+                    </div>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-slate-900 text-sm truncate">{p.nomeCompleto}</p>
+                    <p className="text-xs text-slate-500 truncate">{p.empresaOrigemNome || '—'}</p>
+                  </div>
                 </div>
-              )}
-              <div className="flex-1 min-w-0">
-                <p className="font-semibold text-slate-900 text-sm truncate">{p.nomeCompleto}</p>
+                <div className="flex items-center justify-between">
+                  <StatusBadge status={p.statusAcesso} />
+                  <span className="text-xs text-slate-400 capitalize bg-slate-50 px-2 py-0.5 rounded-full font-medium">{p.tipoAcesso}</span>
+                </div>
+              </button>
+            ))}
+          </motion.div>
+        ) : (
+          <motion.div 
+            key="list"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+          >
+            <Card className="overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="bg-slate-50/80 border-b border-slate-100">
+                      <th className="text-left px-4 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-widest">Pessoa</th>
+                      <th className="text-left px-4 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-widest">Empresa Origem</th>
+                      <th className="text-left px-4 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-widest">Status</th>
+                      <th className="text-left px-4 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-widest">Tipo</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-50">
+                    {filtered.map(p => (
+                      <tr 
+                        key={p.id} 
+                        onClick={() => setSelected(p)}
+                        className="hover:bg-slate-50/80 cursor-pointer transition-colors group"
+                      >
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-3">
+                            {p.foto ? (
+                              <img src={p.foto} alt="" className="w-8 h-8 rounded-lg object-cover" />
+                            ) : (
+                              <div className={cn('w-8 h-8 rounded-lg flex items-center justify-center text-[10px] font-bold text-white',
+                                p.statusAcesso === 'liberado' ? 'bg-emerald-500' : p.statusAcesso === 'a_vencer' ? 'bg-amber-500' : 'bg-red-500')}>
+                                {p.nomeCompleto[0]}
+                              </div>
+                            )}
+                            <p className="text-sm font-semibold text-slate-700 group-hover:text-blue-600 transition-colors">{p.nomeCompleto}</p>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-sm text-slate-600 italic">
+                          {p.empresaOrigemNome || '—'}
+                        </td>
+                        <td className="px-4 py-3">
+                          <StatusBadge status={p.statusAcesso} />
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className="text-[10px] font-black uppercase text-slate-400 border border-slate-200 px-2 py-0.5 rounded">
+                            {p.tipoAcesso}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {filtered.length === 0 && (
+        <div className="pt-8">
+          <EmptyState icon={Users} title="Nenhum registro encontrado" subtitle="Tente buscar por outro nome ou empresa." />
+        </div>
+      )}     <td className="px-4 py-3">
+                          <span className="text-[10px] font-black uppercase text-slate-400 border border-slate-200 px-2 py-0.5 rounded">
+                            {p.tipoAcesso}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {filtered.length === 0 && (
+        <div className="pt-8">
+          <EmptyState icon={Users} title="Nenhum registro encontrado" subtitle="Tente buscar por outro nome ou empresa." />
+        </div>
+      )}mpleto}</p>
                 <p className="text-xs text-slate-500 truncate">{p.empresaOrigemNome || '—'}</p>
               </div>
             </div>
