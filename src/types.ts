@@ -94,6 +94,9 @@ export interface Pessoa {
   
   treinamentos?: TreinamentoPessoa[]; // Arrays agrupados na leitura
 
+  lastPresenceStatus?: 'entrada' | 'saida' | null;
+  lastPresenceTimestamp?: string | null;
+
   createdBy?: string;
   createdAt: string;
 }

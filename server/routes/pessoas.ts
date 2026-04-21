@@ -35,25 +35,33 @@ function calculateStatus(liberadoAte: Date | null, asoVencimento: Date | null, t
 router.get('/', async (req: AuthRequest, res: Response) => {
   try {
     let pessoasData;
+    const baseFields = `
+      p.*, e.name as empresa_origem_nome, t.nome as atividade_nome,
+      pl.status as last_presence_status, pl.timestamp as last_presence_timestamp
+    `;
+    const fromClause = `
+      FROM pessoas p
+      LEFT JOIN empresas_terceiro e ON p.empresa_origem_id = e.id
+      LEFT JOIN tipos_atividade t ON p.atividade_id = t.id
+      LEFT JOIN LATERAL (
+        SELECT status, timestamp 
+        FROM presenca_logs 
+        WHERE pessoa_id = p.id 
+        ORDER BY timestamp DESC 
+        LIMIT 1
+      ) pl ON true
+    `;
+
     if (req.user?.role === 'master') {
       pessoasData = await query(
-        `SELECT p.*, e.name as empresa_origem_nome, t.nome as atividade_nome 
-         FROM pessoas p
-         LEFT JOIN empresas_terceiro e ON p.empresa_origem_id = e.id
-         LEFT JOIN tipos_atividade t ON p.atividade_id = t.id
-         ORDER BY p.nome_completo ASC`
+        `SELECT ${baseFields} ${fromClause} ORDER BY p.nome_completo ASC`
       );
     } else {
       pessoasData = await query(
-        `SELECT p.*, e.name as empresa_origem_nome, t.nome as atividade_nome 
-         FROM pessoas p
-         LEFT JOIN empresas_terceiro e ON p.empresa_origem_id = e.id
-         LEFT JOIN tipos_atividade t ON p.atividade_id = t.id
+        `SELECT ${baseFields} ${fromClause}
          WHERE p.company_id IN (
-           -- Unidades vinculadas diretamente
            SELECT company_id FROM user_companies WHERE user_id = $1
            UNION
-           -- Filiais das unidades vinculadas
            SELECT id FROM companies WHERE parent_id IN (
              SELECT company_id FROM user_companies WHERE user_id = $1
            )
@@ -122,7 +130,9 @@ router.get('/', async (req: AuthRequest, res: Response) => {
         epiObrigatorio: p.epi_obrigatorio,
         epiDescricao: p.epi_descricao,
         statusAcesso,
-        treinamentos: tpps
+        treinamentos: tpps,
+        lastPresenceStatus: p.last_presence_status,
+        lastPresenceTimestamp: p.last_presence_timestamp
       };
     });
     

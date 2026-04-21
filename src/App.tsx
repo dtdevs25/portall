@@ -101,6 +101,50 @@ function getBlockingReasons(p: Pessoa) {
   return reasons;
 }
 
+function OnSitePulse() {
+  return (
+    <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-emerald-50 border border-emerald-200/50 shadow-sm">
+      <div className="relative">
+        <div className="w-2 h-2 rounded-full bg-emerald-500" />
+        <div className="absolute inset-0 w-2 h-2 rounded-full bg-emerald-500 animate-ping opacity-75" />
+      </div>
+      <span className="text-[10px] font-black text-emerald-700 uppercase tracking-wider">Na Operação</span>
+    </div>
+  );
+}
+
+function TimeCounter({ startTime }: { startTime: string }) {
+  const [elapsed, setElapsed] = useState('');
+
+  useEffect(() => {
+    const update = () => {
+      const start = new Date(startTime).getTime();
+      const now = new Date().getTime();
+      const diff = Math.max(0, Math.floor((now - start) / 1000));
+      
+      const h = Math.floor(diff / 3600);
+      const m = Math.floor((diff % 3600) / 60);
+      const s = diff % 60;
+      
+      setElapsed(`${h.toString().padStart(2,'0')}h ${m.toString().padStart(2,'0')}m ${s.toString().padStart(2,'0')}s`);
+    };
+    
+    update();
+    const itv = setInterval(update, 1000);
+    return () => clearInterval(itv);
+  }, [startTime]);
+
+  return (
+    <div className="flex items-center gap-2 text-blue-700 bg-blue-50/50 px-3 py-2 rounded-xl border border-blue-200/30">
+      <Clock size={14} className="text-blue-500" />
+      <div className="flex flex-col">
+        <span className="text-[9px] font-bold text-blue-400 uppercase tracking-widest leading-none mb-0.5">Tempo de Permanência</span>
+        <span className="text-sm font-black font-mono tracking-wider leading-none">{elapsed}</span>
+      </div>
+    </div>
+  );
+}
+
 function StatusBadge({ status }: { status?: StatusAcesso }) {
   const cfg = {
     liberado: { bg: 'bg-emerald-100', text: 'text-emerald-700', dot: 'bg-emerald-500', label: 'Liberado' },
@@ -557,6 +601,7 @@ function PortariaView({ profile }: { profile: UserProfile }) {
   const [pessoas, setPessoas] = useState<Pessoa[]>([]);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusAcesso | ''>('');
+  const [typeFilter, setTypeFilter] = useState<'all' | 'visitante' | 'prestador'>('all');
   const [selected, setSelected] = useState<Pessoa | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
   const [viewType, setViewType] = useState<'card' | 'list'>('card');
@@ -576,8 +621,9 @@ function PortariaView({ profile }: { profile: UserProfile }) {
       p.documento.toLowerCase().includes(term);
     
     const matchesStatus = !statusFilter || p.statusAcesso === statusFilter;
+    const matchesType = typeFilter === 'all' || p.tipoAcesso === typeFilter;
     
-    return matchesText && matchesStatus;
+    return matchesText && matchesStatus && matchesType;
   });
 
   const handleRegistrar = async (pessoaId: string, status: 'entrada' | 'saida') => {
@@ -630,6 +676,16 @@ function PortariaView({ profile }: { profile: UserProfile }) {
           />
         </div>
         
+        <select 
+          value={typeFilter}
+          onChange={e => setTypeFilter(e.target.value as any)}
+          className="px-4 py-3 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-600 outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
+        >
+          <option value="all">Todas Categorias</option>
+          <option value="visitante">Visitantes</option>
+          <option value="prestador">Prestadores</option>
+        </select>
+
         <select 
           value={statusFilter}
           onChange={e => setStatusFilter(e.target.value as any)}
@@ -690,7 +746,7 @@ function PortariaView({ profile }: { profile: UserProfile }) {
                   </div>
                 </div>
                 <div className="flex items-center justify-between">
-                  <StatusBadge status={p.statusAcesso} />
+                  {p.lastPresenceStatus === 'entrada' ? <OnSitePulse /> : <StatusBadge status={p.statusAcesso} />}
                   <span className="text-xs text-slate-400 capitalize bg-slate-50 px-2 py-0.5 rounded-full font-medium">{p.tipoAcesso}</span>
                 </div>
               </button>
@@ -710,7 +766,7 @@ function PortariaView({ profile }: { profile: UserProfile }) {
                     <tr className="bg-slate-50/80 border-b border-slate-100">
                       <th className="text-left px-4 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-widest">Pessoa</th>
                       <th className="text-left px-4 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-widest">Empresa Origem</th>
-                      <th className="text-left px-4 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-widest">Status</th>
+                      <th className="text-left px-4 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-widest">Status / Operação</th>
                       <th className="text-left px-4 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-widest">Tipo</th>
                     </tr>
                   </thead>
@@ -738,7 +794,7 @@ function PortariaView({ profile }: { profile: UserProfile }) {
                           {p.empresaOrigemNome || '—'}
                         </td>
                         <td className="px-4 py-3">
-                          <StatusBadge status={p.statusAcesso} />
+                          {p.lastPresenceStatus === 'entrada' ? <OnSitePulse /> : <StatusBadge status={p.statusAcesso} />}
                         </td>
                         <td className="px-4 py-3">
                           <span className="text-[10px] font-black uppercase text-slate-400 border border-slate-200 px-2 py-0.5 rounded">
@@ -779,7 +835,12 @@ function PortariaView({ profile }: { profile: UserProfile }) {
                 <div>
                   <h3 className="text-lg font-bold text-slate-900">{selected.nomeCompleto}</h3>
                   <p className="text-sm text-slate-500">{selected.empresaOrigemNome || 'Empresa não informada'}</p>
-                  <div className="mt-2"><StatusBadge status={selected.statusAcesso} /></div>
+                  <div className="mt-2 flex items-center gap-2">
+                    <StatusBadge status={selected.statusAcesso} />
+                    {selected.lastPresenceStatus === 'entrada' && selected.lastPresenceTimestamp && (
+                      <TimeCounter startTime={selected.lastPresenceTimestamp} />
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -876,17 +937,23 @@ function PortariaView({ profile }: { profile: UserProfile }) {
 
               {/* Ações */}
               <div className="flex gap-3 pt-2">
-                <Button variant="success" className="flex-1" disabled={actionLoading || selected.statusAcesso === 'bloqueado'}
-                  onClick={() => handleRegistrar(selected.id, 'entrada')}>
-                  <ArrowRightCircle size={18} /> Registrar Entrada
-                </Button>
-                <Button variant="danger" className="flex-1" disabled={actionLoading}
-                  onClick={() => handleRegistrar(selected.id, 'saida')}>
-                  <ArrowLeftCircle size={18} /> Registrar Saída
-                </Button>
+                {selected.lastPresenceStatus === 'entrada' ? (
+                  <Button variant="danger" className="flex-1 h-12 text-base shadow-lg shadow-red-600/20" disabled={actionLoading}
+                    onClick={() => handleRegistrar(selected!.id, 'saida')}>
+                    <ArrowLeftCircle size={20} /> Registrar Saída
+                  </Button>
+                ) : (
+                  <Button variant="success" className="flex-1 h-12 text-base shadow-lg shadow-emerald-600/20" 
+                    disabled={actionLoading || selected.statusAcesso === 'bloqueado'}
+                    onClick={() => handleRegistrar(selected!.id, 'entrada')}>
+                    <ArrowRightCircle size={20} /> Registrar Entrada
+                  </Button>
+                )}
               </div>
-              {selected.statusAcesso === 'bloqueado' && (
-                <p className="text-xs text-red-600 text-center font-semibold">⚠️ Acesso bloqueado — entrada não permitida.</p>
+              {selected.statusAcesso === 'bloqueado' && selected.lastPresenceStatus !== 'entrada' && (
+                <p className="text-xs text-red-600 text-center font-semibold bg-red-50 py-2 rounded-lg border border-red-100">
+                  ⚠️ Acesso bloqueado — entrada não permitida. Verifique as pendências acima.
+                </p>
               )}
             </div>
           </Modal>
