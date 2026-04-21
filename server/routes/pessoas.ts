@@ -87,12 +87,27 @@ router.get('/', async (req: AuthRequest, res: Response) => {
 
       links.forEach((l: any) => {
         if (!treinamentosPorPessoa[l.pessoa_id]) treinamentosPorPessoa[l.pessoa_id] = [];
+        const dataVenc = new Date(l.data_vencimento);
+        const now = new Date();
+        const in90Days = new Date();
+        in90Days.setDate(in90Days.getDate() + 90);
+
+        let statusTreinamento: 'Vencido' | 'A Vencer' | 'Válido';
+        if (dataVenc < now) {
+          statusTreinamento = 'Vencido';
+        } else if (dataVenc <= in90Days) {
+          statusTreinamento = 'A Vencer';
+        } else {
+          statusTreinamento = 'Válido';
+        }
+
         treinamentosPorPessoa[l.pessoa_id].push({
            treinamentoId: l.treinamento_id,
            treinamentoNome: l.nome,
            treinamentoCodigo: l.codigo,
            dataRealizacao: l.data_realizacao,
-           dataVencimento: l.data_vencimento
+           dataVencimento: l.data_vencimento,
+           statusTreinamento
         });
       });
     }

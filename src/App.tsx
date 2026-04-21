@@ -87,8 +87,10 @@ function getBlockingReasons(p: Pessoa) {
     }
 
     p.treinamentos?.forEach(t => {
-      if (t.statusTreinamento === 'Vencido' || t.statusTreinamento === 'A Vencer') {
-        reasons.push(`O treinamento [${t.treinamentoNome}] está ${t.statusTreinamento.toLowerCase()} (Venceu em ${fmtDate(t.dataVencimento)})`);
+      if (t.statusTreinamento === 'Vencido') {
+        reasons.push(`Treinamento Vencido: ${t.treinamentoNome} (Venceu em ${fmtDate(t.dataVencimento)})`);
+      } else if (t.statusTreinamento === 'A Vencer') {
+        reasons.push(`Treinamento a vencer em breve: ${t.treinamentoNome} (Vence em ${fmtDate(t.dataVencimento)})`);
       }
     });
   }
@@ -991,22 +993,27 @@ function PortariaView({ profile }: { profile: UserProfile }) {
                       const st = t.statusTreinamento;
                       const isVencido = st === 'Vencido';
                       const isAVencer = st === 'A Vencer';
-                      const col = isVencido ? 'border-red-200 bg-red-50' : isAVencer ? 'border-amber-200 bg-amber-50' : 'border-emerald-100 bg-emerald-50/50';
+                      const isValido  = !isVencido && !isAVencer;
+                      const cardCol = isVencido ? 'border-red-200 bg-red-50' : isAVencer ? 'border-amber-200 bg-amber-50' : 'border-emerald-100 bg-emerald-50/50';
+                      const iconCol  = isVencido ? 'bg-red-100 text-red-600' : isAVencer ? 'bg-amber-100 text-amber-600' : 'bg-emerald-100 text-emerald-600';
+                      const badgeCol = isVencido ? 'bg-red-600 text-white' : isAVencer ? 'bg-amber-500 text-white' : 'bg-emerald-600 text-white';
+                      const badgeLabel = isVencido ? 'Vencido' : isAVencer ? 'A Vencer' : 'Válido';
                       
                       return (
-                        <div key={i} className={cn('flex items-center justify-between p-3 rounded-xl border transition-all', col)}>
+                        <div key={i} className={cn('flex items-center justify-between p-3 rounded-xl border transition-all', cardCol)}>
                           <div className="flex items-center gap-3">
-                            <div className={cn('p-2 rounded-lg', isVencido ? 'bg-red-100 text-red-600' : 'bg-emerald-100 text-emerald-600')}>
-                              {isVencido ? <AlertTriangle size={16} /> : <CheckCircle2 size={16} />}
+                            <div className={cn('p-2 rounded-lg', iconCol)}>
+                              {isVencido ? <AlertTriangle size={16} /> : isAVencer ? <AlertTriangle size={16} /> : <CheckCircle2 size={16} />}
                             </div>
                             <div>
                               <p className="text-sm font-bold text-slate-800">{t.treinamentoNome}</p>
-                              <p className="text-[11px] text-slate-500 font-medium">Vencimento: <span className="font-bold">{fmtDate(t.dataVencimento)}</span></p>
+                              <p className={cn('text-[11px] font-medium', isVencido ? 'text-red-600' : isAVencer ? 'text-amber-600' : 'text-slate-500')}>
+                                Vencimento: <span className="font-bold">{fmtDate(t.dataVencimento)}</span>
+                              </p>
                             </div>
                           </div>
-                          <span className={cn('text-[10px] font-black uppercase px-2 py-1 rounded-md shadow-sm', 
-                            isVencido ? 'bg-red-600 text-white' : isAVencer ? 'bg-amber-500 text-white' : 'bg-emerald-600 text-white')}>
-                            {st}
+                          <span className={cn('text-[10px] font-black uppercase px-2 py-1 rounded-md shadow-sm', badgeCol)}>
+                            {badgeLabel}
                           </span>
                         </div>
                       );
