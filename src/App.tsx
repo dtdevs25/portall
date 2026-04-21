@@ -512,6 +512,7 @@ function Sidebar({ activeTab, setActiveTab, profile, collapsed, setCollapsed }: 
 function PortariaView({ profile }: { profile: UserProfile }) {
   const [pessoas, setPessoas] = useState<Pessoa[]>([]);
   const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState<StatusAcesso | ''>('');
   const [selected, setSelected] = useState<Pessoa | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
   const [viewType, setViewType] = useState<'card' | 'list'>('card');
@@ -522,10 +523,18 @@ function PortariaView({ profile }: { profile: UserProfile }) {
     try { setPessoas(await api.get<Pessoa[]>('/pessoas')); } catch {}
   };
 
-  const filtered = pessoas.filter(p =>
-    p.nomeCompleto.toLowerCase().includes(search.toLowerCase()) ||
-    (p.empresaOrigemNome || '').toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = pessoas.filter(p => {
+    const term = search.toLowerCase();
+    const matchesText = !search || 
+      p.nomeCompleto.toLowerCase().includes(term) ||
+      (p.empresaOrigemNome || '').toLowerCase().includes(term) ||
+      p.documento.replace(/\D/g, '').includes(term.replace(/\D/g, '')) ||
+      p.documento.toLowerCase().includes(term);
+    
+    const matchesStatus = !statusFilter || p.statusAcesso === statusFilter;
+    
+    return matchesText && matchesStatus;
+  });
 
   const handleRegistrar = async (pessoaId: string, status: 'entrada' | 'saida') => {
     setActionLoading(true);
@@ -566,16 +575,28 @@ function PortariaView({ profile }: { profile: UserProfile }) {
       </div>
 
       {/* Search & Toggle */}
-      <div className="flex flex-wrap items-center gap-4">
+      <div className="flex flex-wrap items-center gap-3">
         <div className="relative flex-1 min-w-[280px]">
           <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <input 
             value={search} 
             onChange={e => setSearch(e.target.value)} 
-            placeholder="Buscar por nome ou empresa..."
+            placeholder="Buscar por nome, empresa ou documento..."
             className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 bg-white text-sm outline-none focus:ring-2 focus:ring-blue-500 transition-all shadow-sm" 
           />
         </div>
+        
+        <select 
+          value={statusFilter}
+          onChange={e => setStatusFilter(e.target.value as any)}
+          className="px-4 py-3 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-600 outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
+        >
+          <option value="">Todos os Status</option>
+          <option value="liberado" className="text-emerald-600">✅ Liberados</option>
+          <option value="a_vencer" className="text-amber-600">⚠️ A Vencer</option>
+          <option value="bloqueado" className="text-red-600">🚫 Bloqueados</option>
+        </select>
+
         <div className="flex bg-white p-1 rounded-xl border border-slate-200 shadow-sm">
           <button 
             onClick={() => setViewType('card')}
@@ -723,7 +744,7 @@ function PortariaView({ profile }: { profile: UserProfile }) {
                 {[
                   { label: 'Tipo de Acesso', value: selected.tipoAcesso === 'visitante' ? 'Visitante' : 'Prestador de Serviço' },
                   { 
-                    label: selected.documento.replace(/\D/g, '').length === 11 ? 'CPF (LGPD)' : 'RG/Doc (LGPD)', 
+                    label: selected.documento.replace(/\D/g, '').length === 11 ? 'CPF' : 'RG', 
                     value: maskLGPD(selected.documento) 
                   },
                   { label: 'Responsável Interno', value: selected.responsavelInterno },
