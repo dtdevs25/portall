@@ -38,7 +38,7 @@ router.get('/', async (req: AuthRequest, res: Response) => {
     const baseQuery = `
       SELECT p.id, p.pessoa_id, pes.nome_completo as pessoa_nome, 
              e.name as empresa_origem, p.viewer_id, u.display_name as viewer_nome, 
-             p.status, p.timestamp, c.name as company_name
+             p.status, p.armario, p.timestamp, c.name as company_name
       FROM presenca_logs p
       JOIN pessoas pes ON p.pessoa_id = pes.id
       JOIN users u ON p.viewer_id = u.id
@@ -61,6 +61,7 @@ router.get('/', async (req: AuthRequest, res: Response) => {
       viewerNome: log.viewer_nome,
       companyName: log.company_name,
       status: log.status,
+      armario: log.armario,
       timestamp: log.timestamp
     })));
   } catch (err) {
@@ -74,7 +75,7 @@ router.get('/', async (req: AuthRequest, res: Response) => {
 // ============================================================
 router.post('/', async (req: AuthRequest, res: Response) => {
   try {
-    const { pessoaId, status } = req.body;
+    const { pessoaId, status, armario } = req.body;
 
     if (!pessoaId || !['entrada', 'saida'].includes(status)) {
       res.status(400).json({ error: 'ID da pessoa e status (entrada/saida) são obrigatórios.' });
@@ -121,16 +122,17 @@ router.post('/', async (req: AuthRequest, res: Response) => {
     }
 
     const log = await queryOne<{ id: string, timestamp: string }>(
-      `INSERT INTO presenca_logs (pessoa_id, viewer_id, status)
-       VALUES ($1, $2, $3)
+      `INSERT INTO presenca_logs (pessoa_id, viewer_id, status, armario)
+       VALUES ($1, $2, $3, $4)
        RETURNING id, timestamp`,
-      [pessoa.id, req.user!.userId, status]
+      [pessoa.id, req.user!.userId, status, armario || null]
     );
 
     // REGISTRO NO LOG DE AUDITORIA (MASTER)
     let logDetails: any = { 
       pessoa_nome: pessoa.nome_completo,
-      documento: pessoa.documento 
+      documento: pessoa.documento,
+      armario: armario || undefined
     };
 
     if (status === 'saida') {

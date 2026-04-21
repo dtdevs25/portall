@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { api, getStoredUser, saveSession, clearSession } from './api';
 import type {
   UserProfile, Company, EmpresaTerceiro, TipoTreinamento,
-  TipoAtividade, Pessoa, PresencaLog, TreinamentoPessoa, StatusAcesso
+  TipoAtividade, Pessoa, PresencaLog, TreinamentoPessoa, StatusAcesso, NotificationEmail, SystemLog
 } from './types';
 import {
   LogOut, Users, Building2, ShieldCheck, ClipboardList, Settings,
@@ -542,57 +542,103 @@ function Header({ profile, onLogout }: { profile: UserProfile; onLogout: () => v
 
 // ─── Sidebar ─────────────────────────────────────────────────────────────────
 
-type TabId = 'portaria' | 'pessoas' | 'empresas_terceiro' | 'treinamentos' | 'companies' | 'usuarios' | 'logs';
+type TabId = 'portaria' | 'pessoas' | 'empresas_terceiro' | 'treinamentos' | 'companies' | 'usuarios' | 'logs' | 'notificacoes';
 
-function Sidebar({ activeTab, setActiveTab, profile, collapsed, setCollapsed }: {
+function Sidebar({ activeTab, setActiveTab, profile, collapsed, setCollapsed, mobileOpen, setMobileOpen }: {
   activeTab: TabId; setActiveTab: (t: TabId) => void;
   profile: UserProfile; collapsed: boolean; setCollapsed: (v: boolean) => void;
+  mobileOpen: boolean; setMobileOpen: (v: boolean) => void;
 }) {
-  const items: { id: TabId; label: string; icon: any; roles: string[] }[] = [
-    { id: 'portaria',        label: 'Portaria',           icon: Home,        roles: ['master','admin','viewer'] },
-    { id: 'pessoas',         label: 'Visitantes e Prestadores', icon: Users, roles: ['master','admin'] },
-    { id: 'empresas_terceiro',label:'Provedores',           icon: Building2,   roles: ['master','admin'] },
-    { id: 'treinamentos',    label: 'Treinamentos',         icon: BookOpen,   roles: ['master','admin'] },
-    { id: 'companies',       label: 'Empresas',             icon: ShieldCheck, roles: ['master', 'admin'] },
-    { id: 'usuarios',        label: 'Usuários do Sistema',  icon: UserCog,     roles: ['master','admin'] },
-    { id: 'logs',            label: 'Auditoria de Logs',     icon: ClipboardList, roles: ['master'] },
+  const operacional: { id: TabId; label: string; icon: any; roles: string[] }[] = [
+    { id: 'portaria',          label: 'Portaria',                 icon: Home,          roles: ['master','admin','viewer'] },
+    { id: 'pessoas',           label: 'Visitantes e Prestadores', icon: Users,         roles: ['master','admin'] },
+    { id: 'empresas_terceiro', label: 'Provedores',               icon: Building2,     roles: ['master','admin'] },
+    { id: 'treinamentos',      label: 'Treinamentos',             icon: BookOpen,      roles: ['master','admin'] },
+  ];
+  const administrativo: { id: TabId; label: string; icon: any; roles: string[] }[] = [
+    { id: 'notificacoes',      label: 'Notificações',             icon: Mail,          roles: ['master','admin'] },
+    { id: 'companies',         label: 'Empresas',                 icon: ShieldCheck,   roles: ['master','admin'] },
+    { id: 'usuarios',          label: 'Usuários do Sistema',      icon: UserCog,       roles: ['master','admin'] },
+    { id: 'logs',              label: 'Auditoria de Logs',        icon: ClipboardList, roles: ['master'] },
   ];
 
-  const visible = items.filter(i => i.roles.includes(profile.role));
+  const visOp  = operacional.filter(i => i.roles.includes(profile.role));
+  const visAdm = administrativo.filter(i => i.roles.includes(profile.role));
+
+  const navItem = (item: (typeof operacional)[0]) => (
+    <button key={item.id} onClick={() => { setActiveTab(item.id); setMobileOpen(false); }}
+      className={cn(
+        'w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all',
+        activeTab === item.id
+          ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30'
+          : 'text-slate-400 hover:bg-white/5 hover:text-slate-100',
+        collapsed && 'justify-center'
+      )}>
+      <item.icon size={18} className="shrink-0" />
+      {!collapsed && <span className="truncate">{item.label}</span>}
+    </button>
+  );
+
+  const sidebarContent = (
+    <div className="flex flex-col h-full overflow-hidden">
+      <nav className="flex-1 px-3 py-4 overflow-y-auto custom-scrollbar space-y-1">
+        {visOp.length > 0 && (
+          <>
+            {!collapsed && <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest px-3 pb-1 pt-3">Operacional</p>}
+            {visOp.map(navItem)}
+          </>
+        )}
+        {visAdm.length > 0 && (
+          <>
+            {!collapsed && <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest px-3 pb-1 pt-5">Administração</p>}
+            {collapsed && <div className="my-3 mx-3 h-px bg-white/10" />}
+            {visAdm.map(navItem)}
+          </>
+        )}
+      </nav>
+    </div>
+  );
 
   return (
-    <motion.aside 
-      animate={{ width: collapsed ? 80 : 280 }}
-      transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-      className="relative h-full bg-slate-900 text-white shrink-0 z-50 group border-r border-white/5 shadow-2xl shadow-slate-900/50"
-    >
-      {/* Collapse toggle (The Bubble) */}
-      <button 
-        onClick={() => setCollapsed(!collapsed)}
-        className="absolute -right-3.5 top-10 z-40 w-7 h-7 rounded-full bg-white border-2 border-slate-900 flex items-center justify-center text-slate-900 hover:bg-blue-600 hover:text-white transition-all shadow-xl hover:scale-110 active:scale-90"
+    <>
+      {/* Desktop Sidebar */}
+      <motion.aside
+        animate={{ width: collapsed ? 72 : 256 }}
+        transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+        className="relative h-full bg-slate-900 text-white shrink-0 z-50 hidden md:block border-r border-white/5 shadow-2xl shadow-slate-900/50"
       >
-        {collapsed ? <ChevronRight size={14} strokeWidth={3} /> : <ChevronLeft size={14} strokeWidth={3} />}
-      </button>
+        <button
+          onClick={() => setCollapsed(!collapsed)}
+          className="absolute -right-3.5 top-8 z-40 w-7 h-7 rounded-full bg-white border-2 border-slate-900 flex items-center justify-center text-slate-900 hover:bg-blue-600 hover:text-white transition-all shadow-xl hover:scale-110 active:scale-90"
+        >
+          {collapsed ? <ChevronRight size={14} strokeWidth={3} /> : <ChevronLeft size={14} strokeWidth={3} />}
+        </button>
+        {sidebarContent}
+      </motion.aside>
 
-      <div className="flex flex-col h-full overflow-hidden">
-        {/* Nav */}
-        <nav className="flex-1 px-3 py-6 space-y-6 overflow-y-auto custom-scrollbar">
-          {visible.map(item => (
-            <button key={item.id} onClick={() => setActiveTab(item.id)}
-              className={cn(
-                'w-full flex items-center gap-3 px-3 py-3 rounded-2xl text-sm font-semibold transition-all relative group/item',
-                activeTab === item.id
-                  ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30'
-                  : 'text-slate-400 hover:bg-white/5 hover:text-slate-100',
-                collapsed && 'justify-center'
-              )}>
-              <item.icon size={20} />
-              {!collapsed && <span>{item.label}</span>}
-            </button>
-          ))}
-        </nav>
-      </div>
-    </motion.aside>
+      {/* Mobile Drawer Overlay */}
+      {mobileOpen && (
+        <div className="fixed inset-0 z-40 md:hidden" onClick={() => setMobileOpen(false)}>
+          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" />
+        </div>
+      )}
+
+      {/* Mobile Drawer */}
+      <motion.aside
+        initial={{ x: '-100%' }}
+        animate={{ x: mobileOpen ? 0 : '-100%' }}
+        transition={{ type: 'spring', stiffness: 350, damping: 35 }}
+        className="fixed left-0 top-0 bottom-0 w-72 bg-slate-900 text-white z-50 md:hidden shadow-2xl border-r border-white/5"
+      >
+        <div className="flex items-center justify-between p-4 border-b border-white/10">
+          <img src="/LogoCompleto.png" alt="PortALL" className="h-8 w-auto object-contain" />
+          <button onClick={() => setMobileOpen(false)} className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition-all">
+            <X size={20} />
+          </button>
+        </div>
+        {sidebarContent}
+      </motion.aside>
+    </>
   );
 }
 
@@ -606,6 +652,8 @@ function PortariaView({ profile }: { profile: UserProfile }) {
   const [selected, setSelected] = useState<Pessoa | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
   const [viewType, setViewType] = useState<'card' | 'list'>('card');
+  const [lockerPrompt, setLockerPrompt] = useState<{pessoaId: string, status: 'entrada'|'saida'} | null>(null);
+  const [lockerInput, setLockerInput] = useState('');
 
   useEffect(() => { fetchPessoas(); }, []);
 
@@ -629,15 +677,44 @@ function PortariaView({ profile }: { profile: UserProfile }) {
 
   const filtered = baseFiltered.filter(p => !statusFilter || p.statusAcesso === statusFilter);
 
-  const handleRegistrar = async (pessoaId: string, status: 'entrada' | 'saida') => {
+  const confirmRegistrar = async () => {
+    if (!lockerPrompt) return;
     setActionLoading(true);
     try {
-      await api.post('/presencas', { pessoaId, status });
+      await api.post('/presencas', { 
+        pessoaId: lockerPrompt.pessoaId, 
+        status: lockerPrompt.status,
+        armario: lockerInput.trim() || undefined
+      });
       setSelected(null);
+      setLockerPrompt(null);
+      setLockerInput('');
       fetchPessoas();
     } catch (err: any) {
       alert(err.error || 'Erro ao registrar.');
     } finally { setActionLoading(false); }
+  };
+
+  const handleRegistrar = (pessoaId: string, status: 'entrada' | 'saida') => {
+    if (status === 'entrada') {
+      setLockerPrompt({ pessoaId, status });
+      setLockerInput('');
+    } else {
+      setLockerPrompt({ pessoaId, status });
+      // Para saída, podemos chamar direto ou deixar o modal confirmar. Vamos chamar direto para acelerar:
+      confirmOutput(pessoaId, status);
+    }
+  };
+
+  const confirmOutput = async (pessoaId: string, status: 'saida') => {
+    setActionLoading(true);
+    try {
+      await api.post('/presencas', { pessoaId, status });
+      setSelected(null);
+      setLockerPrompt(null);
+      fetchPessoas();
+    } catch (err: any) { alert(err.error || 'Erro ao registrar.'); } 
+    finally { setActionLoading(false); }
   };
 
   const statusCount = {
@@ -958,6 +1035,31 @@ function PortariaView({ profile }: { profile: UserProfile }) {
                   ⚠️ Acesso bloqueado — entrada não permitida. Verifique as pendências acima.
                 </p>
               )}
+            </div>
+          </Modal>
+        )}
+      </AnimatePresence>
+
+      {/* Locker Prompt Modal */}
+      <AnimatePresence>
+        {lockerPrompt && lockerPrompt.status === 'entrada' && (
+          <Modal title="Identificação de Armário (Opcional)" onClose={() => setLockerPrompt(null)} size="sm">
+            <div className="space-y-5">
+              <p className="text-sm text-slate-600 font-medium">O visitante/prestador utilizará algum armário para armazenar seus pertences? Se sim, informe o número ou identificação abaixo.</p>
+              
+              <Input 
+                label="Identificação do Armário / Vole"
+                placeholder="Exemplo: Armário 15"
+                value={lockerInput}
+                onChange={setLockerInput}
+              />
+              
+              <div className="flex gap-3 pt-3">
+                <Button variant="ghost" onClick={() => setLockerPrompt(null)} className="flex-1">Cancelar</Button>
+                <Button onClick={confirmRegistrar} disabled={actionLoading} className="flex-1 shadow-md shadow-blue-500/20">
+                  <CheckCircle2 size={18} /> Confirmar Entrada
+                </Button>
+              </div>
             </div>
           </Modal>
         )}
@@ -2397,6 +2499,8 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<TabId>('portaria');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [companies, setCompanies] = useState<Company[]>([]);
   const [resetToken, setResetToken] = useState<string | null>(null);
   const [resetPw, setResetPw] = useState('');
   const [resetConfirm, setResetConfirm] = useState('');
@@ -2412,6 +2516,12 @@ export default function App() {
     if (token) { setResetToken(token); window.history.replaceState({}, '', window.location.pathname); }
     checkSession();
   }, []);
+
+  useEffect(() => {
+    if (profile) {
+      api.get<Company[]>('/companies').then(c => setCompanies(c || [])).catch(() => {});
+    }
+  }, [profile]);
 
   const checkSession = async () => {
     const stored = getStoredUser();
@@ -2519,7 +2629,19 @@ export default function App() {
 
   return (
     <div className="h-screen flex flex-col overflow-hidden bg-slate-50" style={{ fontFamily: "'Inter', system-ui, sans-serif" }}>
-      <Header profile={profile} onLogout={handleLogout} />
+      {/* Mobile Top Bar */}
+      <div className="md:hidden flex items-center justify-between px-4 h-14 bg-slate-900 border-b border-white/5 shrink-0 z-30">
+        <button onClick={() => setMobileSidebarOpen(true)} className="p-2 rounded-xl text-slate-300 hover:text-white hover:bg-white/10 transition-all">
+          <Menu size={22} />
+        </button>
+        <img src="/LogoCompleto.png" alt="PortALL" className="h-8 w-auto object-contain" />
+        <div className="w-10" />
+      </div>
+
+      {/* Desktop Header */}
+      <div className="hidden md:block">
+        <Header profile={profile} onLogout={handleLogout} />
+      </div>
       
       <div className="flex flex-1 overflow-hidden relative">
         <Sidebar 
@@ -2527,11 +2649,13 @@ export default function App() {
           setActiveTab={setActiveTab} 
           profile={profile} 
           collapsed={sidebarCollapsed} 
-          setCollapsed={setSidebarCollapsed} 
+          setCollapsed={setSidebarCollapsed}
+          mobileOpen={mobileSidebarOpen}
+          setMobileOpen={setMobileSidebarOpen}
         />
 
         <main className="flex-1 overflow-y-auto relative z-10">
-          <div className="max-w-7xl mx-auto p-4 md:p-8">
+          <div className="max-w-7xl mx-auto p-3 sm:p-4 md:p-8">
             <AnimatePresence mode="wait">
               <motion.div 
                 key={activeTab} 
@@ -2540,14 +2664,15 @@ export default function App() {
                 exit={{ opacity: 0, y: -10 }} 
                 transition={{ duration: 0.15 }}
               >
-                {activeTab === 'portaria'         && <PortariaView profile={profile} />}
-                {activeTab === 'pessoas'          && <PessoasView profile={profile} />}
+                {activeTab === 'portaria'          && <PortariaView profile={profile} />}
+                {activeTab === 'pessoas'           && <PessoasView profile={profile} />}
                 {activeTab === 'empresas_terceiro' && <EmpresasTerceiroView profile={profile} />}
-                {activeTab === 'treinamentos'     && <TreinamentosView profile={profile} />}
-                {activeTab === 'atividades'       && <AtividadesView profile={profile} />}
-                {activeTab === 'companies'        && (profile.role === 'master' || profile.role === 'admin') && <CompaniesView profile={profile} />}
-                {activeTab === 'usuarios'         && <UsuariosView profile={profile} />}
-                {activeTab === 'logs'             && profile.role === 'master' && <LogsView />}
+                {activeTab === 'treinamentos'      && <TreinamentosView profile={profile} />}
+                {activeTab === 'atividades'        && <AtividadesView profile={profile} />}
+                {activeTab === 'companies'         && (profile.role === 'master' || profile.role === 'admin') && <CompaniesView profile={profile} />}
+                {activeTab === 'usuarios'          && <UsuariosView profile={profile} />}
+                {activeTab === 'logs'              && profile.role === 'master' && <LogsView />}
+                {activeTab === 'notificacoes'      && <NotificacoesView profile={profile} companies={companies} />}
               </motion.div>
             </AnimatePresence>
           </div>
@@ -2874,6 +2999,107 @@ function UsuariosView({ profile }: { profile: UserProfile }) {
           />
         )}
       </AnimatePresence>
+    </div>
+  );
+}
+
+function NotificacoesView({ profile, companies }: { profile: UserProfile, companies: Company[] }) {
+  const [emails, setEmails] = useState<NotificationEmail[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [inputEmail, setInputEmail] = useState('');
+  const [selectedCompanyId, setSelectedCompanyId] = useState(
+    profile.role !== 'master' ? profile.companyId : (companies[0]?.id || '')
+  );
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (selectedCompanyId || profile.role !== 'master') {
+      fetchEmails();
+    }
+  }, [selectedCompanyId, profile.role]);
+
+  const fetchEmails = async () => {
+    try {
+      setLoading(true);
+      const data = await api.get<NotificationEmail[]>(`/notifications${profile.role === 'master' && selectedCompanyId ? `?companyId=${selectedCompanyId}` : ''}`);
+      setEmails(data || []);
+    } catch (err: any) { alert(err.error || 'Erro ao carregar e-mails.'); } 
+    finally { setLoading(false); }
+  };
+
+  const handleAdd = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!inputEmail || !selectedCompanyId) return;
+    setSaving(true);
+    try {
+      await api.post('/notifications', { companyId: selectedCompanyId, email: inputEmail });
+      setInputEmail('');
+      fetchEmails();
+    } catch (err: any) { alert(err.error || 'Erro ao salvar e-mail.'); }
+    finally { setSaving(false); }
+  };
+
+  const handleDelete = async (id: string) => {
+    try {
+      await api.delete(`/notifications/${id}`);
+      fetchEmails();
+    } catch (err: any) { alert(err.error || 'Erro ao remover.'); }
+  };
+
+  return (
+    <div className="max-w-4xl mx-auto space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">Notificações e Alertas</h1>
+          <p className="text-sm text-slate-500 mt-0.5">Gerencie quem recebe e-mails de entrada de novos Visitantes ou Prestadores.</p>
+        </div>
+      </div>
+
+      <Card className="p-6 space-y-6">
+        <form onSubmit={handleAdd} className="flex flex-wrap items-end gap-3">
+          {profile.role === 'master' && (
+            <div className="flex-1 min-w-[200px]">
+              <Select label="Filial / Base Operacional" value={selectedCompanyId} onChange={setSelectedCompanyId} required>
+                <option value="">Selecione a empresa...</option>
+                <CompanySelectOptions companies={companies} />
+              </Select>
+            </div>
+          )}
+          <div className="flex-1 min-w-[200px]">
+             <Input label="E-mail" type="email" placeholder="nome@empresa.com.br" value={inputEmail} onChange={setInputEmail} required />
+          </div>
+          <Button type="submit" disabled={saving || !selectedCompanyId || !inputEmail}>
+            <Plus size={16} /> Adicionar
+          </Button>
+        </form>
+
+        <div className="border-t border-slate-100 pt-6">
+          {loading ? (
+            <div className="py-8 flex justify-center"><div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" /></div>
+          ) : emails.length === 0 ? (
+            <EmptyState icon={Mail} title="Nenhum e-mail cadastrado" subtitle="Adicione endereços de e-mail acima para começar a receber os alertas desta unidade." />
+          ) : (
+            <div className="space-y-3">
+              {emails.map(email => (
+                <div key={email.id} className="flex items-center justify-between p-3 bg-slate-50 border border-slate-100 rounded-xl">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-blue-100 text-blue-600 rounded-lg"><Mail size={16} /></div>
+                    <div>
+                      <p className="text-sm font-bold text-slate-800">{email.email}</p>
+                      {profile.role === 'master' && (
+                         <p className="text-[10px] text-slate-400">Unidade ID: {email.companyId}</p>
+                      )}
+                    </div>
+                  </div>
+                  <button onClick={() => handleDelete(email.id)} className="w-8 h-8 flex items-center justify-center rounded-lg text-red-500 hover:bg-red-50 transition-colors">
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </Card>
     </div>
   );
 }

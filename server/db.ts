@@ -50,6 +50,12 @@ export async function initDB(): Promise<void> {
       );
     `);
 
+    // Retrocompatibilidade: Garante que a coluna armario seja criada na tabela existente
+    await client.query(`
+      ALTER TABLE presenca_logs 
+      ADD COLUMN IF NOT EXISTS armario VARCHAR(50);
+    `);
+
     // Cria admin inicial se não existir nenhum usuário
     const { rows } = await client.query(
       'SELECT COUNT(*) as count FROM users'

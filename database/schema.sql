@@ -134,7 +134,18 @@ CREATE TABLE IF NOT EXISTS presenca_logs (
   pessoa_id UUID NOT NULL REFERENCES pessoas(id) ON DELETE CASCADE,
   viewer_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   status VARCHAR(20) NOT NULL CHECK (status IN ('entrada', 'saida')),
+  armario VARCHAR(50), -- Identificação do armário utilizado
   timestamp TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- ============================================================
+-- TABELA: notification_emails
+-- ============================================================
+CREATE TABLE IF NOT EXISTS notification_emails (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  company_id UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+  email VARCHAR(255) NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- ============================================================

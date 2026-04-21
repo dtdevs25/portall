@@ -110,7 +110,15 @@ export interface PresencaLog {
   viewerId: string;
   viewerNome?: string;
   status: 'entrada' | 'saida';
+  armario?: string;
   timestamp: string;
+}
+
+export interface NotificationEmail {
+  id: string;
+  companyId: string;
+  email: string;
+  createdAt: string;
 }
 
 export interface SystemLog {

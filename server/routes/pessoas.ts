@@ -1,6 +1,7 @@
 import { Router, Response } from 'express';
 import { requireAuth, AuthRequest } from '../auth/middleware.js';
 import { query, queryOne } from '../db.js';
+import nodemailer from 'nodemailer';
 
 const router = Router();
 
@@ -238,6 +239,58 @@ router.post('/', async (req: AuthRequest, res: Response) => {
         JSON.stringify({ nome_completo: nomeCompleto, documento })
       ]
     );
+
+    // ============================================
+    // Disparo de E-mails (Notificações)
+    // ============================================
+    try {
+      const emailList = await query<{ email: string }>(
+        'SELECT email FROM notification_emails WHERE company_id = $1',
+        [companyId]
+      );
+      if (emailList.length > 0) {
+        let empresaNomeTx = 'Empresa não informada';
+        if (empresaOrigemId) {
+          const emp = await queryOne<{ name: string }>('SELECT name FROM empresas_terceiro WHERE id = $1', [empresaOrigemId]);
+          if (emp) empresaNomeTx = emp.name;
+        }
+
+        const mailer = nodemailer.createTransport({
+          host: process.env.SMTP_HOST || 'smtp.gmail.com',
+          port: parseInt(process.env.SMTP_PORT || '587'),
+          secure: process.env.SMTP_SECURE === 'true',
+          auth: {
+            user: process.env.SMTP_USER,
+            pass: process.env.SMTP_PASS,
+          },
+        });
+
+        const subject = `Novo Cadastro no PortALL: ${nomeCompleto}`;
+        const bodyHtml = `
+          <h2>Novo Cadastro Registrado</h2>
+          <p>Um novo cadastro foi realizado na base de dados (Unidade ID: ${companyId}):</p>
+          <ul>
+            <li><strong>Nome:</strong> ${nomeCompleto}</li>
+            <li><strong>Documento:</strong> ${documento}</li>
+            <li><strong>Categoria:</strong> ${tipoAcesso === 'visitante' ? 'Visitante' : 'Prestador de Serviço'}</li>
+            <li><strong>Empresa de Origem:</strong> ${empresaNomeTx}</li>
+            <li><strong>Responsável Interno:</strong> ${responsavelInterno}</li>
+            <li><strong>Acesso Liberado Até:</strong> ${liberadoAte || 'Data não definida'}</li>
+          </ul>
+          <p><small>Este é um e-mail automático do sistema PortALL.</small></p>
+        `;
+
+        await mailer.sendMail({
+          from: process.env.SMTP_FROM || 'no-reply@portall.com',
+          to: emailList.map((e) => e.email),
+          subject: subject,
+          html: bodyHtml
+        });
+      }
+    } catch (emailErr) {
+      console.error('Falha ao disparar e-mail de notificação:', emailErr);
+      // Não trava a criação da pessoa se o e-mail falhar.
+    }
 
     res.status(201).json(pessoa);
   } catch (err: any) {

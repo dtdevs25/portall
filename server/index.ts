@@ -15,6 +15,7 @@ import empresasTerceiroRoutes from './routes/empresasTerceiro.js';
 import usersRoutes from './routes/users.js';
 import uploadRoutes from './routes/upload.js';
 import logsRoutes from './routes/logs.js';
+import notificationsRoutes from './routes/notifications.js';
 import { ensureBucket } from './minioClient.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -124,6 +125,7 @@ app.use('/api/empresas-terceiro', empresasTerceiroRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/logs', logsRoutes);
+app.use('/api/notifications', notificationsRoutes);
 
 // ============================================================
 // Health check (para CapRover)
