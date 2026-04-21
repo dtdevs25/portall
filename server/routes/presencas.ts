@@ -83,9 +83,10 @@ router.post('/', async (req: AuthRequest, res: Response) => {
 
     const pessoa = await queryOne<{ 
       id: string; company_id: string; tipo_acesso: string; 
+      nome_completo: string; documento: string;
       liberado_ate: string; aso_data_realizacao: string;
     }>(
-      'SELECT id, company_id, tipo_acesso, liberado_ate, aso_data_realizacao FROM pessoas WHERE id = $1',
+      'SELECT id, company_id, tipo_acesso, nome_completo, documento, liberado_ate, aso_data_realizacao FROM pessoas WHERE id = $1',
       [pessoaId]
     );
 
@@ -124,6 +125,45 @@ router.post('/', async (req: AuthRequest, res: Response) => {
        VALUES ($1, $2, $3)
        RETURNING id, timestamp`,
       [pessoa.id, req.user!.userId, status]
+    );
+
+    // REGISTRO NO LOG DE AUDITORIA (MASTER)
+    let logDetails: any = { 
+      pessoa_nome: pessoa.nome_completo,
+      documento: pessoa.documento 
+    };
+
+    if (status === 'saida') {
+      // Tenta encontrar a última entrada para calcular tempo de permanência
+      const lastEntry = await queryOne<{ timestamp: string }>(
+        `SELECT timestamp FROM presenca_logs 
+         WHERE pessoa_id = $1 AND status = 'entrada' AND timestamp < $2
+         ORDER BY timestamp DESC LIMIT 1`,
+        [pessoaId, log?.timestamp]
+      );
+
+      if (lastEntry) {
+        const entryTime = new Date(lastEntry.timestamp);
+        const exitTime = new Date(log!.timestamp);
+        const diffMs = exitTime.getTime() - entryTime.getTime();
+        
+        const hours = Math.floor(diffMs / 3600000);
+        const minutes = Math.floor((diffMs % 3600000) / 60000);
+        logDetails.duracao = `${hours}h ${minutes}min`;
+        logDetails.entrada_timestamp = lastEntry.timestamp;
+      }
+    }
+
+    await query(
+      `INSERT INTO system_logs (user_id, action, entity_type, entity_id, details)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [
+        req.user!.userId, 
+        status === 'entrada' ? 'ENTRADA' : 'SAIDA', 
+        'pessoa', 
+        pessoaId, 
+        JSON.stringify(logDetails)
+      ]
     );
 
     res.status(201).json({

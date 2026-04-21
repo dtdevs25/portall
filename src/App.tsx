@@ -542,7 +542,7 @@ function Header({ profile, onLogout }: { profile: UserProfile; onLogout: () => v
 
 // ─── Sidebar ─────────────────────────────────────────────────────────────────
 
-type TabId = 'portaria' | 'pessoas' | 'empresas_terceiro' | 'treinamentos' | 'companies' | 'usuarios';
+type TabId = 'portaria' | 'pessoas' | 'empresas_terceiro' | 'treinamentos' | 'companies' | 'usuarios' | 'logs';
 
 function Sidebar({ activeTab, setActiveTab, profile, collapsed, setCollapsed }: {
   activeTab: TabId; setActiveTab: (t: TabId) => void;
@@ -555,6 +555,7 @@ function Sidebar({ activeTab, setActiveTab, profile, collapsed, setCollapsed }: 
     { id: 'treinamentos',    label: 'Treinamentos',         icon: BookOpen,   roles: ['master','admin'] },
     { id: 'companies',       label: 'Empresas',             icon: ShieldCheck, roles: ['master', 'admin'] },
     { id: 'usuarios',        label: 'Usuários do Sistema',  icon: UserCog,     roles: ['master','admin'] },
+    { id: 'logs',            label: 'Auditoria de Logs',     icon: ClipboardList, roles: ['master'] },
   ];
 
   const visible = items.filter(i => i.roles.includes(profile.role));
@@ -2544,6 +2545,7 @@ export default function App() {
                 {activeTab === 'atividades'       && <AtividadesView profile={profile} />}
                 {activeTab === 'companies'        && (profile.role === 'master' || profile.role === 'admin') && <CompaniesView profile={profile} />}
                 {activeTab === 'usuarios'         && <UsuariosView profile={profile} />}
+                {activeTab === 'logs'             && profile.role === 'master' && <LogsView />}
               </motion.div>
             </AnimatePresence>
           </div>
@@ -2874,3 +2876,136 @@ function UsuariosView({ profile }: { profile: UserProfile }) {
   );
 }
 
+function LogsView() {
+  const [logs, setLogs] = useState<SystemLog[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+
+  useEffect(() => { fetchLogs(); }, []);
+
+  const fetchLogs = async () => {
+    try {
+      setLoading(true);
+      const data = await api.get<SystemLog[]>('/logs');
+      setLogs(data || []);
+    } catch (e: any) {
+      alert(e.error || 'Erro ao carregar logs.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const parseAction = (action: string) => {
+    switch (action) {
+      case 'PESSOA_CRIADA': return { label: 'Cadastro Realizado', color: 'bg-emerald-100 text-emerald-700 border-emerald-200' };
+      case 'PESSOA_ATUALIZADA': return { label: 'Cadastro Atualizado', color: 'bg-blue-100 text-blue-700 border-blue-200' };
+      case 'PESSOA_EXCLUIDA': return { label: 'Cadastro Excluído', color: 'bg-red-100 text-red-700 border-red-200' };
+      case 'ENTRADA': return { label: 'Entrada na Unidade', color: 'bg-indigo-100 text-indigo-700 border-indigo-200' };
+      case 'SAIDA': return { label: 'Saída Registrada', color: 'bg-amber-100 text-amber-700 border-amber-200' };
+      default: return { label: action, color: 'bg-slate-100 text-slate-600 border-slate-200' };
+    }
+  };
+
+  const filtered = logs.filter(l => 
+    !search || 
+    (l.user_name || '').toLowerCase().includes(search.toLowerCase()) || 
+    (l.details?.pessoa_nome || '').toLowerCase().includes(search.toLowerCase())
+  );
+
+  return (
+    <div className="max-w-6xl mx-auto space-y-6 pb-20">
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
+            <ClipboardList className="text-blue-600" /> Auditoria de Logs
+          </h1>
+          <p className="text-sm text-slate-500 mt-1">Monitore e rastreie todas as atividades críticas realizadas no sistema.</p>
+        </div>
+        <Button variant="ghost" onClick={fetchLogs} disabled={loading}>
+          <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
+          Atualizar
+        </Button>
+      </div>
+
+      <div className="relative">
+        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+        <input 
+          value={search} 
+          onChange={e => setSearch(e.target.value)} 
+          placeholder="Buscar por Operador (Usuário) ou Nome da Pessoa afetada..."
+          className="w-full pl-9 pr-3 py-3 rounded-xl border border-slate-200 shadow-sm bg-white text-sm outline-none focus:ring-2 focus:ring-blue-500 transition-all font-medium" 
+        />
+      </div>
+
+      <Card>
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className="bg-slate-50/50 border-b border-slate-100">
+                <th className="text-left px-5 py-4 text-xs font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">Data / Hora</th>
+                <th className="text-left px-5 py-4 text-xs font-black text-slate-400 uppercase tracking-widest">Operador Responsável</th>
+                <th className="text-left px-5 py-4 text-xs font-black text-slate-400 uppercase tracking-widest">Ação / Evento</th>
+                <th className="text-left px-5 py-4 text-xs font-black text-slate-400 uppercase tracking-widest max-w-sm">Detalhes / Permanência</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-50">
+              {filtered.map(log => {
+                const actionConf = parseAction(log.action);
+                const dt = new Date(log.timestamp);
+                
+                return (
+                  <tr key={log.id} className="hover:bg-slate-50/80 transition-colors group">
+                    <td className="px-5 py-4 whitespace-nowrap">
+                      <div className="text-sm font-semibold text-slate-700">{format(dt, 'dd/MM/yyyy')}</div>
+                      <div className="text-xs font-bold text-slate-400 tracking-wider flex items-center gap-1 mt-0.5">
+                        <Clock size={10} /> {format(dt, 'HH:mm:ss')}
+                      </div>
+                    </td>
+                    <td className="px-5 py-4 whitespace-nowrap">
+                      <div className="text-sm font-bold text-slate-800">{log.user_name || 'Usuário Removido'}</div>
+                    </td>
+                    <td className="px-5 py-4 whitespace-nowrap">
+                      <span className={cn('text-[10px] font-black uppercase tracking-wider border px-2.5 py-1 rounded-full', actionConf.color)}>
+                        {actionConf.label}
+                      </span>
+                    </td>
+                    <td className="px-5 py-4 max-w-sm">
+                      {log.details && (
+                        <div className="bg-slate-50 border border-slate-100 rounded-lg p-3 group-hover:bg-white group-hover:shadow-sm transition-all text-sm">
+                          {log.details.pessoa_nome && (
+                            <p className="font-semibold text-slate-700 truncate line-clamp-1" title={log.details.pessoa_nome}>
+                              🙎‍♂️ <span className="font-bold underline decoration-slate-300 underline-offset-2">{log.details.pessoa_nome}</span>
+                            </p>
+                          )}
+                          {log.details.documento && (
+                            <p className="text-xs text-slate-500 font-mono mt-1">Doc: {log.details.documento}</p>
+                          )}
+                          {log.details.duracao && (
+                            <div className="mt-2 text-xs font-bold flex items-center gap-1.5 text-blue-700 drop-shadow-sm">
+                              <span className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-pulse" />
+                              DURAÇÃO NA OPERAÇÃO: {log.details.duracao}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+          {!loading && filtered.length === 0 && (
+            <div className="p-12 text-center">
+              <EmptyState icon={ClipboardList} title="Sem registros" subtitle="Nenhuma ação foi registrada ainda ou corresponde à sua busca." />
+            </div>
+          )}
+          {loading && (
+             <div className="flex justify-center p-8">
+               <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+             </div>
+          )}
+        </div>
+      </Card>
+    </div>
+  );
+}

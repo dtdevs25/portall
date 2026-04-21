@@ -227,6 +227,18 @@ router.post('/', async (req: AuthRequest, res: Response) => {
       }
     }
 
+    await query(
+      `INSERT INTO system_logs (user_id, action, entity_type, entity_id, details)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [
+        req.user!.userId,
+        'PESSOA_CRIADA',
+        'pessoa',
+        pessoa.id,
+        JSON.stringify({ nome_completo: nomeCompleto, documento })
+      ]
+    );
+
     res.status(201).json(pessoa);
   } catch (err: any) {
     console.error('POST /pessoas error:', err);
@@ -291,6 +303,18 @@ router.put('/:id', async (req: AuthRequest, res: Response) => {
       }
     }
 
+    await query(
+      `INSERT INTO system_logs (user_id, action, entity_type, entity_id, details)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [
+        req.user!.userId,
+        'PESSOA_ATUALIZADA',
+        'pessoa',
+        id,
+        JSON.stringify({ nome_completo: nomeCompleto, documento })
+      ]
+    );
+
     res.json({ success: true });
   } catch (err: any) {
     console.error('PUT /pessoas error:', err);
@@ -299,8 +323,38 @@ router.put('/:id', async (req: AuthRequest, res: Response) => {
 });
 
 router.delete('/:id', async (req: AuthRequest, res: Response) => {
-   // apenas soft/hard delete
-   res.json({ message: 'delete here' });
+  try {
+    const { id } = req.params;
+    
+    // Busca dados antes de deletar para o log
+    const pessoa = await queryOne<{ nome_completo: string, documento: string }>(
+      'SELECT nome_completo, documento FROM pessoas WHERE id = $1', [id]
+    );
+
+    if (!pessoa) {
+      res.status(404).json({ error: 'Pessoa não encontrada.' });
+      return;
+    }
+
+    await query('DELETE FROM pessoas WHERE id = $1', [id]);
+
+    await query(
+      `INSERT INTO system_logs (user_id, action, entity_type, entity_id, details)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [
+        req.user!.userId,
+        'PESSOA_EXCLUIDA',
+        'pessoa',
+        id,
+        JSON.stringify({ nome_completo: pessoa.nome_completo, documento: pessoa.documento })
+      ]
+    );
+
+    res.json({ success: true });
+  } catch (err: any) {
+    console.error('DELETE /pessoas error:', err);
+    res.status(500).json({ error: 'Erro ao excluir pessoa.' });
+  }
 });
 
 export default router;

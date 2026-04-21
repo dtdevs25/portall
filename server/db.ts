@@ -37,6 +37,19 @@ export async function initDB(): Promise<void> {
       console.log('✅ Schema PostgreSQL aplicado com sucesso.');
     }
 
+    // Cria a tabela system_logs caso falhe na leitura do schema (retrocompatibilidade DBs existentes)
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS system_logs (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+        action VARCHAR(50) NOT NULL,
+        entity_type VARCHAR(50) NOT NULL,
+        entity_id UUID,
+        details JSONB,
+        timestamp TIMESTAMPTZ DEFAULT NOW()
+      );
+    `);
+
     // Cria admin inicial se não existir nenhum usuário
     const { rows } = await client.query(
       'SELECT COUNT(*) as count FROM users'

@@ -148,6 +148,19 @@ CREATE TABLE IF NOT EXISTS token_blacklist (
 );
 
 -- ============================================================
+-- TABELA: system_logs (Auditoria do Sistema)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS system_logs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES users(id) ON DELETE SET NULL, -- Quem executou a ação
+  action VARCHAR(50) NOT NULL, -- Ex: PESSOA_CRIADA, ENTRADA, SAIDA, PESSOA_EXCLUIDA
+  entity_type VARCHAR(50) NOT NULL, -- Ex: pessoa, empresa
+  entity_id UUID,
+  details JSONB, -- Informações textuais/estruturadas (nome, documento, duração de permanência)
+  timestamp TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- ============================================================
 -- ÍNDICES para performance
 -- ============================================================
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
