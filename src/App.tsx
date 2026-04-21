@@ -62,25 +62,40 @@ function getBlockingReasons(p: Pessoa) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  if (p.liberadoAte) {
-    const libDate = new Date(p.liberadoAte.split(' ')[0] + 'T12:00:00');
-    if (libDate < today) reasons.push(`Prazo de acesso expirado (${fmtDate(p.liberadoAte)})`);
+  const parseSafe = (dStr: string | null | undefined) => {
+    if (!dStr) return null;
+    const clean = dStr.split(' ')[0].split('T')[0];
+    const date = new Date(clean + 'T12:00:00');
+    return isNaN(date.getTime()) ? null : date;
+  };
+
+  const libDate = parseSafe(p.liberadoAte);
+  if (libDate && libDate < today) {
+    reasons.push(`O prazo de validade do cadastro expirou em ${fmtDate(p.liberadoAte)}`);
   }
 
   if (p.tipoAcesso === 'prestador') {
-    if (p.asoDataRealizacao) {
-      const asoDate = new Date(p.asoDataRealizacao.split(' ')[0] + 'T12:00:00');
-      asoDate.setFullYear(asoDate.getFullYear() + 1);
-      if (asoDate < today) reasons.push(`ASO Vencido (${fmtDate(asoDate.toISOString())})`);
-    } else if (p.tipoAcesso === 'prestador') {
-      reasons.push('ASO não realizado');
+    const asoBase = parseSafe(p.asoDataRealizacao);
+    if (asoBase) {
+      const asoVenc = new Date(asoBase);
+      asoVenc.setFullYear(asoVenc.getFullYear() + 1);
+      if (asoVenc < today) {
+        reasons.push(`ASO Vencido em ${fmtDate(asoVenc.toISOString())} (Exame realizado há mais de 1 ano)`);
+      }
+    } else {
+      reasons.push('Falta realizar ou registrar a data do ASO');
     }
 
     p.treinamentos?.forEach(t => {
-      if (t.statusTreinamento === 'Vencido') {
-        reasons.push(`Treinamento Vencido: ${t.treinamentoNome}`);
+      if (t.statusTreinamento === 'Vencido' || t.statusTreinamento === 'A Vencer') {
+        reasons.push(`O treinamento [${t.treinamentoNome}] está ${t.statusTreinamento.toLowerCase()} (Venceu em ${fmtDate(t.dataVencimento)})`);
       }
     });
+  }
+
+  // Fallback se o status é bloqueado mas não achamos o motivo via data (segurança extra)
+  if (reasons.length === 0 && p.statusAcesso === 'bloqueado') {
+    reasons.push('Acesso bloqueado por expiração de documentos ou pendência administrativa.');
   }
 
   return reasons;
