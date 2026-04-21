@@ -1,7 +1,7 @@
 import { Router, Response } from 'express';
 import { requireAuth, AuthRequest } from '../auth/middleware.js';
 import { query, queryOne } from '../db.js';
-import nodemailer from 'nodemailer';
+import { sendMail } from '../mailer.js';
 
 const router = Router();
 
@@ -263,6 +263,7 @@ router.post('/', async (req: AuthRequest, res: Response) => {
         'SELECT email FROM notification_emails WHERE company_id = $1',
         [companyId]
       );
+
       if (emailList.length > 0) {
         let empresaNomeTx = 'Empresa não informada';
         if (empresaOrigemId) {
@@ -270,40 +271,44 @@ router.post('/', async (req: AuthRequest, res: Response) => {
           if (emp) empresaNomeTx = emp.name;
         }
 
-        const mailer = nodemailer.createTransport({
-          host: process.env.SMTP_HOST || 'smtp.gmail.com',
-          port: parseInt(process.env.SMTP_PORT || '587'),
-          secure: process.env.SMTP_SECURE === 'true',
-          auth: {
-            user: process.env.SMTP_USER,
-            pass: process.env.SMTP_PASS,
-          },
-        });
-
-        const subject = `Novo Cadastro no PortALL: ${nomeCompleto}`;
+        const appUrl = process.env.APP_URL || 'https://portall.ctdibrasil.com.br';
+        const subject = `[PortALL] Novo Cadastro: ${nomeCompleto}`;
         const bodyHtml = `
-          <h2>Novo Cadastro Registrado</h2>
-          <p>Um novo cadastro foi realizado na base de dados (Unidade ID: ${companyId}):</p>
-          <ul>
-            <li><strong>Nome:</strong> ${nomeCompleto}</li>
-            <li><strong>Documento:</strong> ${documento}</li>
-            <li><strong>Categoria:</strong> ${tipoAcesso === 'visitante' ? 'Visitante' : 'Prestador de Serviço'}</li>
-            <li><strong>Empresa de Origem:</strong> ${empresaNomeTx}</li>
-            <li><strong>Responsável Interno:</strong> ${responsavelInterno}</li>
-            <li><strong>Acesso Liberado Até:</strong> ${liberadoAte || 'Data não definida'}</li>
-          </ul>
-          <p><small>Este é um e-mail automático do sistema PortALL.</small></p>
+          <!DOCTYPE html>
+          <html lang="pt-BR">
+          <head><meta charset="UTF-8"></head>
+          <body style="font-family: Arial, sans-serif; background: #f5f5f5; padding: 32px 16px;">
+            <div style="max-width: 540px; margin: 0 auto; background: white; border-radius: 16px; padding: 36px; box-shadow: 0 4px 20px rgba(0,0,0,0.07);">
+              <div style="text-align:center; margin-bottom: 28px;">
+                <img src="${appUrl}/LogoCompleto.png" alt="PortALL" style="height: 42px; object-fit: contain;" />
+              </div>
+              <h2 style="color: #1e3a5f; font-size: 17px; margin-bottom: 4px;">Novo Cadastro Registrado</h2>
+              <p style="color: #6b7280; font-size: 13px; margin-top: 0;">Um novo registro foi inserido na sua base de controle de acesso.</p>
+              <table style="width:100%; border-collapse: collapse; margin-top: 20px; font-size: 14px;">
+                <tr style="background: #f8faff;"><td style="padding: 10px 14px; font-weight: bold; color: #374151; width: 40%;">Nome</td><td style="padding: 10px 14px; color: #111827;">${nomeCompleto}</td></tr>
+                <tr><td style="padding: 10px 14px; font-weight: bold; color: #374151;">Documento</td><td style="padding: 10px 14px; color: #111827;">${documento}</td></tr>
+                <tr style="background: #f8faff;"><td style="padding: 10px 14px; font-weight: bold; color: #374151;">Categoria</td><td style="padding: 10px 14px; color: #111827;">${tipoAcesso === 'visitante' ? 'Visitante' : 'Prestador de Serviço'}</td></tr>
+                <tr><td style="padding: 10px 14px; font-weight: bold; color: #374151;">Empresa de Origem</td><td style="padding: 10px 14px; color: #111827;">${empresaNomeTx}</td></tr>
+                <tr style="background: #f8faff;"><td style="padding: 10px 14px; font-weight: bold; color: #374151;">Responsável Interno</td><td style="padding: 10px 14px; color: #111827;">${responsavelInterno}</td></tr>
+                <tr><td style="padding: 10px 14px; font-weight: bold; color: #374151;">Acesso Liberado Até</td><td style="padding: 10px 14px; color: ${liberadoAte ? '#059669' : '#dc2626'}; font-weight: bold;">${liberadoAte || 'Não definido'}</td></tr>
+              </table>
+              <p style="color: #9ca3af; font-size: 11px; text-align: center; margin-top: 28px; border-top: 1px solid #f3f4f6; padding-top: 16px;">
+                PortALL &copy; ${new Date().getFullYear()} &mdash; E-mail automático, não responda.
+              </p>
+            </div>
+          </body></html>
         `;
 
-        await mailer.sendMail({
-          from: process.env.SMTP_FROM || 'no-reply@portall.com',
-          to: emailList.map((e) => e.email),
-          subject: subject,
-          html: bodyHtml
+        await sendMail({
+          to: emailList.map(e => e.email),
+          subject,
+          html: bodyHtml,
         });
+      } else {
+        console.log(`[MAILER] Nenhum e-mail configurado para a empresa ${companyId}. Nenhum alerta enviado.`);
       }
     } catch (emailErr) {
-      console.error('Falha ao disparar e-mail de notificação:', emailErr);
+      console.error('[MAILER] Falha ao disparar e-mail de notificação:', emailErr);
       // Não trava a criação da pessoa se o e-mail falhar.
     }
 
