@@ -227,8 +227,76 @@ router.put('/atividades/:id', async (req: AuthRequest, res: Response) => {
 });
 
 router.delete('/tipos/:id', async (req: AuthRequest, res: Response) => {
-   // apenas master apaga global, admin apaga apenas de sua company
-   res.json({ message: 'implement delete types here' });
+  try {
+    const { id } = req.params;
+
+    const tipo = await queryOne<{ company_id: string; escopo: string }>(
+      'SELECT company_id, escopo FROM tipos_treinamento WHERE id = $1',
+      [id]
+    );
+
+    if (!tipo) {
+      res.status(404).json({ error: 'Treinamento não encontrado.' });
+      return;
+    }
+
+    // Apenas master pode excluir globais
+    if (tipo.escopo === 'global' && req.user?.role !== 'master') {
+      res.status(403).json({ error: 'Somente o master pode excluir treinamentos globais.' });
+      return;
+    }
+
+    await query('DELETE FROM tipos_treinamento WHERE id = $1', [id]);
+    res.json({ success: true, message: 'Treinamento excluído.' });
+  } catch (err) {
+    console.error('DELETE tipos error:', err);
+    res.status(500).json({ error: 'Erro ao excluir treinamento.' });
+  }
+});
+
+// ============================================================
+// PUT /api/treinamentos/tipos/:id
+// ============================================================
+router.put('/tipos/:id', async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { nome, validadeMeses, escopo, companyId } = req.body;
+
+    if (!nome) {
+      res.status(400).json({ error: 'Nome é obrigatório.' });
+      return;
+    }
+
+    const tipo = await queryOne<{ company_id: string; escopo: string }>(
+      'SELECT company_id, escopo FROM tipos_treinamento WHERE id = $1',
+      [id]
+    );
+
+    if (!tipo) {
+      res.status(404).json({ error: 'Treinamento não encontrado.' });
+      return;
+    }
+
+    // Apenas master pode editar globais
+    if (tipo.escopo === 'global' && req.user?.role !== 'master') {
+      res.status(403).json({ error: 'Somente o master pode editar treinamentos globais.' });
+      return;
+    }
+
+    const finalEscopo = req.user?.role === 'master' ? (escopo || tipo.escopo) : 'personalizado';
+
+    await query(
+      `UPDATE tipos_treinamento 
+       SET nome = $1, validade_meses = $2, escopo = $3, company_id = $4
+       WHERE id = $5`,
+      [nome.trim(), parseInt(validadeMeses || '12'), finalEscopo, companyId || tipo.company_id, id]
+    );
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error('PUT tipos error:', err);
+    res.status(500).json({ error: 'Erro ao atualizar treinamento.' });
+  }
 });
 
 export default router;
