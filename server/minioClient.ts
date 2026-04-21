@@ -33,8 +33,6 @@ export async function ensureBucket() {
   const exists = await minioClient.bucketExists(MINIO_BUCKET);
   if (!exists) {
     await minioClient.makeBucket(MINIO_BUCKET, 'us-east-1');
-    // Set public read policy for the bucket if it's for public photos
-    // Or we can use presigned URLs. The user provided a "browser" link, suggesting they want them accessible.
     const policy = {
       Version: "2012-10-17",
       Statement: [

@@ -14,19 +14,42 @@ function calculateStatus(liberadoAte: Date | null, asoVencimento: Date | null, t
   if (liberadoAte && liberadoAte < now) return 'bloqueado';
   if (asoVencimento && asoVencimento < now) return 'bloqueado';
   
-  for (const t of treinamentos) {
-    if (t.vencimento < now) return 'bloqueado';
-  }
+  // Se algum treinamento obrigatório venceu
+  const hasVencido = treinamentos.some(t => t.vencimento < now);
+  if (hasVencido) return 'bloqueado';
 
-  const in30Days = new Date();
-  in30Days.setDate(in30Days.getDate() + 30);
+  // Verifica "A Vencer" (90 dias)
+  const in90Days = new Date();
+  in90Days.setDate(in90Days.getDate() + 90);
 
-  if (asoVencimento && asoVencimento <= in30Days) return 'a_vencer';
-  for (const t of treinamentos) {
-    if (t.vencimento <= in30Days) return 'a_vencer';
-  }
+  const hasAVencer = treinamentos.some(t => t.vencimento <= in90Days);
+  if (hasAVencer) return 'a_vencer';
+  
+  // ASO ou Liberação vencendo em 90 dias
+  if (asoVencimento && asoVencimento <= in90Days) return 'a_vencer';
+  if (liberadoAte && liberadoAte <= in90Days) return 'a_vencer';
 
   return 'liberado';
+}
+
+function mapFotoUrl(rawPath: string | null): string | null {
+  if (!rawPath) return null;
+  if (rawPath.startsWith('/api/upload/foto/')) return rawPath;
+  
+  // Extrai filename de links MinIO (diretos ou via browser console)
+  if (rawPath.includes('/fotos-portall/')) {
+    const parts = rawPath.split('/');
+    let filename = parts[parts.length - 1];
+    // Limpa eventuais base64 ou queries do console
+    filename = filename.split('?')[0].split('#')[0];
+    return `/api/upload/foto/${filename}`;
+  }
+
+  if (!rawPath.includes('/')) {
+    return `/api/upload/foto/${rawPath}`;
+  }
+
+  return rawPath;
 }
 
 // ============================================================
@@ -130,7 +153,7 @@ router.get('/', async (req: AuthRequest, res: Response) => {
         id: p.id,
         companyId: p.company_id,
         tipoAcesso: p.tipo_acesso,
-        foto: p.foto,
+        foto: mapFotoUrl(p.foto),
         nomeCompleto: p.nome_completo,
         documento: p.documento,
         empresaOrigemId: p.empresa_origem_id,
