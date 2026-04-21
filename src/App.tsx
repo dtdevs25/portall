@@ -10,7 +10,7 @@ import {
   Plus, Trash2, Pencil, Eye, EyeOff, Search, ChevronLeft, ChevronRight,
   Menu, X, AlertTriangle, CheckCircle2, XCircle, Clock, Camera,
   Upload, ArrowRightCircle, ArrowLeftCircle, RefreshCw, BookOpen,
-  Briefcase, UserCog, Bell, Home, Mail
+  Briefcase, UserCog, Bell, Home, Mail, LayoutGrid, List
 } from 'lucide-react';
 import { format, parseISO, isValid } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
