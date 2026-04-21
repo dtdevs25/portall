@@ -36,12 +36,26 @@ function mapFotoUrl(rawPath: string | null): string | null {
   if (!rawPath) return null;
   if (rawPath.startsWith('/api/upload/foto/')) return rawPath;
   
-  // Extrai filename de links MinIO (diretos ou via browser console)
+  // Se for um link do browser do MinIO, o filename vem em base64 no final
+  // Ex: .../browser/fotos-portall/YWM5MT...==
+  if (rawPath.includes('/browser/')) {
+    const parts = rawPath.split('/');
+    let last = parts[parts.length - 1].split('?')[0];
+    try {
+      // Tenta decodificar de base64 (o MinIO usa isso no link do browser)
+      const decoded = Buffer.from(last, 'base64').toString('utf-8');
+      if (decoded.includes('.') && decoded.length > 5) {
+        return `/api/upload/foto/${decoded}`;
+      }
+    } catch (e) {
+      // Se falhar a decodificação, segue o fluxo normal
+    }
+  }
+
+  // Se for link direto do MinIO mas não browser
   if (rawPath.includes('/fotos-portall/')) {
     const parts = rawPath.split('/');
-    let filename = parts[parts.length - 1];
-    // Limpa eventuais base64 ou queries do console
-    filename = filename.split('?')[0].split('#')[0];
+    let filename = parts[parts.length - 1].split('?')[0];
     return `/api/upload/foto/${filename}`;
   }
 
