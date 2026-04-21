@@ -579,8 +579,6 @@ function PortariaView({ profile }: { profile: UserProfile }) {
           </button>
         </div>
       </div>
-      
-      {/* List / Cards Content */}
       <AnimatePresence mode="wait">
         {viewType === 'card' ? (
           <motion.div 
@@ -679,44 +677,10 @@ function PortariaView({ profile }: { profile: UserProfile }) {
       </AnimatePresence>
 
       {filtered.length === 0 && (
-        <div className="pt-8">
+        <div className="pt-8 text-center bg-white rounded-2xl border border-slate-100 p-12">
           <EmptyState icon={Users} title="Nenhum registro encontrado" subtitle="Tente buscar por outro nome ou empresa." />
         </div>
-      )}     <td className="px-4 py-3">
-                          <span className="text-[10px] font-black uppercase text-slate-400 border border-slate-200 px-2 py-0.5 rounded">
-                            {p.tipoAcesso}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </Card>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {filtered.length === 0 && (
-        <div className="pt-8">
-          <EmptyState icon={Users} title="Nenhum registro encontrado" subtitle="Tente buscar por outro nome ou empresa." />
-        </div>
-      )}mpleto}</p>
-                <p className="text-xs text-slate-500 truncate">{p.empresaOrigemNome || '—'}</p>
-              </div>
-            </div>
-            <div className="flex items-center justify-between">
-              <StatusBadge status={p.statusAcesso} />
-              <span className="text-xs text-slate-400 capitalize bg-slate-50 px-2 py-0.5 rounded-full">{p.tipoAcesso}</span>
-            </div>
-          </button>
-        ))}
-        {filtered.length === 0 && (
-          <div className="col-span-full">
-            <EmptyState icon={Users} title="Nenhum registro encontrado" subtitle="Tente buscar por outro nome ou empresa." />
-          </div>
-        )}
-      </div>
+      )}
 
       {/* Detail Modal */}
       <AnimatePresence>
