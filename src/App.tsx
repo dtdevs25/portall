@@ -57,6 +57,35 @@ function maskLGPD(doc: string) {
   }).join('');
 }
 
+function getBlockingReasons(p: Pessoa) {
+  const reasons: string[] = [];
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  if (p.liberadoAte) {
+    const libDate = new Date(p.liberadoAte.split(' ')[0] + 'T12:00:00');
+    if (libDate < today) reasons.push(`Prazo de acesso expirado (${fmtDate(p.liberadoAte)})`);
+  }
+
+  if (p.tipoAcesso === 'prestador') {
+    if (p.asoDataRealizacao) {
+      const asoDate = new Date(p.asoDataRealizacao.split(' ')[0] + 'T12:00:00');
+      asoDate.setFullYear(asoDate.getFullYear() + 1);
+      if (asoDate < today) reasons.push(`ASO Vencido (${fmtDate(asoDate.toISOString())})`);
+    } else if (p.tipoAcesso === 'prestador') {
+      reasons.push('ASO não realizado');
+    }
+
+    p.treinamentos?.forEach(t => {
+      if (t.statusTreinamento === 'Vencido') {
+        reasons.push(`Treinamento Vencido: ${t.treinamentoNome}`);
+      }
+    });
+  }
+
+  return reasons;
+}
+
 function StatusBadge({ status }: { status?: StatusAcesso }) {
   const cfg = {
     liberado: { bg: 'bg-emerald-100', text: 'text-emerald-700', dot: 'bg-emerald-500', label: 'Liberado' },
@@ -738,6 +767,36 @@ function PortariaView({ profile }: { profile: UserProfile }) {
                   <div className="mt-2"><StatusBadge status={selected.statusAcesso} /></div>
                 </div>
               </div>
+
+              {/* Blocking Reasons Alert */}
+              {selected.statusAcesso !== 'liberado' && (
+                <motion.div 
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className={cn(
+                    'p-4 rounded-2xl border-2 flex items-start gap-4',
+                    selected.statusAcesso === 'bloqueado' ? 'bg-red-50 border-red-200 text-red-700' : 'bg-amber-50 border-amber-200 text-amber-700'
+                  )}
+                >
+                  <div className={cn('p-2 rounded-xl', selected.statusAcesso === 'bloqueado' ? 'bg-red-100' : 'bg-amber-100')}>
+                    <AlertTriangle size={20} />
+                  </div>
+                  <div>
+                    <p className="font-black text-xs uppercase tracking-widest mb-1">Motivo do Impedimento</p>
+                    <ul className="space-y-1">
+                      {getBlockingReasons(selected).map((r, i) => (
+                        <li key={i} className="text-sm font-bold flex items-center gap-2">
+                          <span className="w-1.5 h-1.5 rounded-full bg-current opacity-50" />
+                          {r}
+                        </li>
+                      ))}
+                      {getBlockingReasons(selected).length === 0 && (
+                        <li className="text-sm font-bold">Verificar documentos e treinamentos pendentes.</li>
+                      )}
+                    </ul>
+                  </div>
+                </motion.div>
+              )}
 
               {/* Info Grid */}
               <div className="grid grid-cols-2 gap-3">
