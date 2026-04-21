@@ -27,6 +27,7 @@ router.post('/', requireAuth, upload.single('foto'), async (req, res) => {
     );
 
     const publicUrl = `${MINIO_PUBLIC_BASE}/${MINIO_BUCKET}/${filename}`;
+    console.log(`📸 [UPLOAD] Foto salva em: ${publicUrl}`);
 
     res.json({ url: publicUrl });
   } catch (err: any) {

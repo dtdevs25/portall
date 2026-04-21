@@ -22,9 +22,14 @@ export const minioClient = new Minio.Client({
 });
 
 export const MINIO_BUCKET = bucketName;
-export const MINIO_PUBLIC_BASE = publicUrl.replace(/\/$/, ''); // Remove barra final se houver
+const base = publicUrl.replace(/\/$/, '');
+// Sanitização extrema: Se o usuário colocou o link do browser/console, nós limpamos
+export const MINIO_PUBLIC_BASE = base.replace(/\/browser\/?$/, '').replace(/\/minio\/?$/, '');
 
 export async function ensureBucket() {
+  console.log(`🔍 [MINIO] Configuração: Endpoint=${endPoint}, Bucket=${MINIO_BUCKET}`);
+  console.log(`🔍 [MINIO] Base URL para fotos: ${MINIO_PUBLIC_BASE}`);
+  
   const exists = await minioClient.bucketExists(MINIO_BUCKET);
   if (!exists) {
     await minioClient.makeBucket(MINIO_BUCKET, 'us-east-1');
