@@ -618,7 +618,7 @@ function PortariaView({ profile }: { profile: UserProfile }) {
     const matchesText = !search || 
       p.nomeCompleto.toLowerCase().includes(term) ||
       (p.empresaOrigemNome || '').toLowerCase().includes(term) ||
-      p.documento.replace(/\D/g, '').includes(term.replace(/\D/g, '')) ||
+      (term.replace(/\D/g, '') && p.documento.replace(/\D/g, '').includes(term.replace(/\D/g, ''))) ||
       p.documento.toLowerCase().includes(term);
     
     const matchesStatus = true; // Handled later
@@ -1259,7 +1259,7 @@ function PessoasView({ profile }: { profile: UserProfile }) {
   const removeTreinamento = (i: number) => setForm(f => ({ ...f, treinamentos: f.treinamentos.filter((_, idx) => idx !== i) }));
 
   const filtered = pessoas
-    .filter(p => !search || p.nomeCompleto.toLowerCase().includes(search.toLowerCase()) || (p.empresaOrigemNome || '').toLowerCase().includes(search.toLowerCase()))
+    .filter(p => !search || p.nomeCompleto.toLowerCase().includes(search.toLowerCase()) || (p.empresaOrigemNome || '').toLowerCase().includes(search.toLowerCase()) || p.documento.toLowerCase().includes(search.toLowerCase()))
     .filter(p => !filterStatus || p.statusAcesso === filterStatus);
 
   return (
