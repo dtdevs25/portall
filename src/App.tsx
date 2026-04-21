@@ -613,7 +613,7 @@ function PortariaView({ profile }: { profile: UserProfile }) {
     try { setPessoas(await api.get<Pessoa[]>('/pessoas')); } catch {}
   };
 
-  const filtered = pessoas.filter(p => {
+  const baseFiltered = pessoas.filter(p => {
     const term = search.toLowerCase();
     const matchesText = !search || 
       p.nomeCompleto.toLowerCase().includes(term) ||
@@ -621,11 +621,13 @@ function PortariaView({ profile }: { profile: UserProfile }) {
       p.documento.replace(/\D/g, '').includes(term.replace(/\D/g, '')) ||
       p.documento.toLowerCase().includes(term);
     
-    const matchesStatus = !statusFilter || p.statusAcesso === statusFilter;
+    const matchesStatus = true; // Handled later
     const matchesType = typeFilter === 'all' || p.tipoAcesso === typeFilter;
     
-    return matchesText && matchesStatus && matchesType;
+    return matchesText && matchesType;
   });
+
+  const filtered = baseFiltered.filter(p => !statusFilter || p.statusAcesso === statusFilter);
 
   const handleRegistrar = async (pessoaId: string, status: 'entrada' | 'saida') => {
     setActionLoading(true);
@@ -639,9 +641,9 @@ function PortariaView({ profile }: { profile: UserProfile }) {
   };
 
   const statusCount = {
-    liberado:  pessoas.filter(p => p.statusAcesso === 'liberado').length,
-    a_vencer:  pessoas.filter(p => p.statusAcesso === 'a_vencer').length,
-    bloqueado: pessoas.filter(p => p.statusAcesso === 'bloqueado').length,
+    liberado:  baseFiltered.filter(p => p.statusAcesso === 'liberado').length,
+    a_vencer:  baseFiltered.filter(p => p.statusAcesso === 'a_vencer').length,
+    bloqueado: baseFiltered.filter(p => p.statusAcesso === 'bloqueado').length,
   };
 
   return (
@@ -654,14 +656,14 @@ function PortariaView({ profile }: { profile: UserProfile }) {
       {/* Stats */}
       <div className="grid grid-cols-3 gap-4">
         {[
-          { label: 'Liberados', count: statusCount.liberado, color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-200' },
-          { label: 'A Vencer',  count: statusCount.a_vencer,  color: 'text-amber-600',   bg: 'bg-amber-50',   border: 'border-amber-200' },
-          { label: 'Bloqueados',count: statusCount.bloqueado, color: 'text-red-600',     bg: 'bg-red-50',     border: 'border-red-200' },
+          { id: 'liberado', label: 'Liberados', count: statusCount.liberado, color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-200' },
+          { id: 'a_vencer', label: 'A Vencer',  count: statusCount.a_vencer,  color: 'text-amber-600',   bg: 'bg-amber-50',   border: 'border-amber-200' },
+          { id: 'bloqueado',label: 'Bloqueados',count: statusCount.bloqueado, color: 'text-red-600',     bg: 'bg-red-50',     border: 'border-red-200' },
         ].map(s => (
-          <Card key={s.label} className={cn('p-4 border', s.border, s.bg)}>
+          <button key={s.label} onClick={() => setStatusFilter(statusFilter === s.id ? '' : s.id as any)} className={cn('p-4 rounded-2xl text-left transition-all hover:scale-[1.02] active:scale-95 border cursor-pointer', s.border, s.bg, statusFilter === s.id ? 'ring-2 ring-offset-2 ring-slate-400 scale-[1.02]' : '')}>
             <p className={cn('text-3xl font-black', s.color)}>{s.count}</p>
             <p className={cn('text-sm font-medium mt-0.5', s.color)}>{s.label}</p>
-          </Card>
+          </button>
         ))}
       </div>
 
@@ -1129,7 +1131,7 @@ function PessoasView({ profile }: { profile: UserProfile }) {
       const newF = { ...f, asoDataRealizacao: date };
       if (date) {
         const d = new Date(date + 'T12:00:00'); // avoid timezone shifts
-        d.setFullYear(d.getFullYear() + 1);
+        if (f.tipoAcesso === 'visitante') { d.setDate(d.getDate() + 7); } else { d.setFullYear(d.getFullYear() + 1); }
         newF.liberadoAte = d.toISOString().split('T')[0];
       }
       return newF;
@@ -1149,7 +1151,7 @@ function PessoasView({ profile }: { profile: UserProfile }) {
       if (form.tipoAcesso === 'visitante') {
         const d = parseSafe(form.asoDataRealizacao);
         if (!d) return '';
-        d.setFullYear(d.getFullYear() + 1);
+        d.setDate(d.getDate() + 7);
         return d.toISOString().split('T')[0];
       } else {
         const dates: number[] = [];
@@ -1398,7 +1400,7 @@ function PessoasView({ profile }: { profile: UserProfile }) {
                     value={form.asoDataRealizacao} 
                     onChange={handleAsoUpdate} 
                     required 
-                    hint={form.tipoAcesso === 'visitante' ? 'Acesso liberado por 1 ano' : 'Calcula validade mínima (ASO + Treinamentos)'} 
+                    hint={form.tipoAcesso === 'visitante' ? 'Acesso liberado por 1 semana' : 'Calcula validade mínima (ASO + Treinamentos)'} 
                   />
                 </div>
                 <Input label="Acesso Válido Até" type="date" value={form.liberadoAte} onChange={v => setForm(f => ({ ...f, liberadoAte: v }))} required hint="Data calculada automaticamente" />
