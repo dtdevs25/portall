@@ -32,6 +32,7 @@ export interface EmpresaTerceiro {
   companyId: string;
   name: string;
   cnpj?: string;
+  email?: string;
   createdAt: string;
 }
 

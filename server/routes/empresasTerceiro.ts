@@ -15,17 +15,17 @@ router.get('/', async (req: AuthRequest, res: Response) => {
     let empresas;
     if (req.user?.role === 'master') {
       empresas = await query<{
-        id: string; company_id: string; name: string; cnpj: string; created_at: string;
+        id: string; company_id: string; name: string; cnpj: string; email: string; created_at: string;
       }>(
-        `SELECT id, company_id, name, cnpj, created_at 
+        `SELECT id, company_id, name, cnpj, email, created_at 
          FROM empresas_terceiro 
          ORDER BY name ASC`
       );
     } else {
       empresas = await query<{
-        id: string; company_id: string; name: string; cnpj: string; created_at: string;
+        id: string; company_id: string; name: string; cnpj: string; email: string; created_at: string;
       }>(
-        `SELECT id, company_id, name, cnpj, created_at 
+        `SELECT id, company_id, name, cnpj, email, created_at 
          FROM empresas_terceiro 
          WHERE company_id IN (
            -- Unidades vinculadas diretamente
@@ -46,6 +46,7 @@ router.get('/', async (req: AuthRequest, res: Response) => {
       companyId: e.company_id,
       name: e.name,
       cnpj: e.cnpj,
+      email: e.email,
       createdAt: e.created_at
     })));
   } catch (err) {
@@ -69,7 +70,7 @@ router.use((req: AuthRequest, res: Response, next) => {
 // ============================================================
 router.post('/', async (req: AuthRequest, res: Response) => {
   try {
-    const { name, cnpj, companyId } = req.body;
+    const { name, cnpj, email, companyId } = req.body;
 
     if (!name) {
       res.status(400).json({ error: 'Nome é obrigatório.' });
@@ -98,11 +99,11 @@ router.post('/', async (req: AuthRequest, res: Response) => {
       }
     }
 
-    const doc = await queryOne<{ id: string; name: string }>(
-      `INSERT INTO empresas_terceiro (company_id, name, cnpj)
-       VALUES ($1, $2, $3)
-       RETURNING id, company_id, name, cnpj, created_at`,
-      [companyId, name.trim(), cnpj ? cnpj.trim() : null]
+    const doc = await queryOne<{ id: string; name: string; email: string }>(
+      `INSERT INTO empresas_terceiro (company_id, name, cnpj, email)
+       VALUES ($1, $2, $3, $4)
+       RETURNING id, company_id, name, cnpj, email, created_at`,
+      [companyId, name.trim(), cnpj ? cnpj.trim() : null, email ? email.trim().toLowerCase() : null]
     );
 
     res.status(201).json(doc);
@@ -122,7 +123,7 @@ router.post('/', async (req: AuthRequest, res: Response) => {
 router.put('/:id', async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
-    const { name, cnpj } = req.body;
+    const { name, cnpj, email } = req.body;
 
     if (req.user?.role === 'admin') {
        const authCheck = await queryOne(
@@ -140,10 +141,10 @@ router.put('/:id', async (req: AuthRequest, res: Response) => {
     }
 
     const doc = await queryOne(
-      `UPDATE empresas_terceiro SET name = $1, cnpj = $2
-       WHERE id = $3
-       RETURNING id, company_id, name, cnpj, created_at`,
-      [name?.trim(), cnpj?.trim() || null, id]
+      `UPDATE empresas_terceiro SET name = $1, cnpj = $2, email = $3
+       WHERE id = $4
+       RETURNING id, company_id, name, cnpj, email, created_at`,
+      [name?.trim(), cnpj?.trim() || null, email?.trim().toLowerCase() || null, id]
     );
 
     if (!doc) {

@@ -3,6 +3,8 @@ import { query } from './db.js';
 import { sendMail } from './mailer.js';
 import { format, addDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import fs from 'fs';
+import path from 'path';
 
 /**
  * Módulo de Tarefas Agendadas (Cron) — PortALL
@@ -10,18 +12,74 @@ import { ptBR } from 'date-fns/locale';
  */
 
 export function initCronJobs() {
-  // Configuração: Toda segunda-feira às 08:30 (horário do servidor)
-  // Cron: '30 8 * * 1' -> Minuto 30, Hora 8, Dia do Mês *, Mês *, Dia da Semana 1 (Segunda)
+  // 1. Relatório Semanal para a Segurança (Mandantes) — Segundas às 08:30
   cron.schedule('30 8 * * 1', async () => {
-    console.log('⏰ [CRON] Iniciando varredura semanal de vencimentos...');
+    console.log('⏰ [CRON] Iniciando varredura semanal de vencimentos (Segurança)...');
     await runExpirationAudit();
   });
 
-  console.log('✅ [CRON] Agendamento de notificações ativado (Seg 08:30).');
+  // 2. Relatório Diário Direto para Terceiros (Provedores) — Diariamente às 09:00
+  cron.schedule('0 9 * * *', async () => {
+    console.log('⏰ [CRON] Iniciando varredura diária de vencimentos para Provedores (15 dias)...');
+    await runDirectVendorAudit();
+  });
+
+  console.log('✅ [CRON] Agendamento de notificações ativado.');
+}
+
+/**
+ * Auditoria Diária focada nos provedores (15 dias de antecedência)
+ */
+export async function runDirectVendorAudit() {
+  try {
+    // Busca empresas de terceiro que possuem e-mail cadastrado
+    const vendors = await query<{ id: string, name: string, email: string }>(
+      'SELECT id, name, email FROM empresas_terceiro WHERE email IS NOT NULL AND email != \'\''
+    );
+
+    for (const vendor of vendors) {
+      const deadline = addDays(new Date(), 15);
+      
+      // Busca pendências apenas desta empresa
+      const asoAlerts = await query<any>(
+        `SELECT p.nome_completo, p.documento, p.aso_data_realizacao
+         FROM pessoas p
+         WHERE p.empresa_origem_id = $1 
+           AND p.is_active = TRUE 
+           AND p.aso_data_realizacao IS NOT NULL
+           AND (p.aso_data_realizacao + interval '1 year' <= $2)`,
+        [vendor.id, deadline]
+      );
+
+      const trainingAlerts = await query<any>(
+        `SELECT p.nome_completo, p.documento, t.nome as treinamento_nome, tp.data_vencimento
+         FROM treinamentos_pessoa tp
+         JOIN pessoas p ON tp.pessoa_id = p.id
+         JOIN tipos_treinamento t ON tp.treinamento_id = t.id
+         WHERE p.empresa_origem_id = $1
+           AND p.is_active = TRUE
+           AND tp.data_vencimento <= $2`,
+        [vendor.id, deadline]
+      );
+
+      if (asoAlerts.length > 0 || trainingAlerts.length > 0) {
+        const reportHtml = generateHtmlReport(vendor.name, asoAlerts, trainingAlerts, true);
+        await sendMail({
+          to: [vendor.email],
+          subject: `🚨 [PortALL] Alerta de Vencimento de Documentos - ${vendor.name}`,
+          html: reportHtml
+        });
+        console.log(`[CRON] E-mail de 15 dias enviado para o provedor: ${vendor.name} (${vendor.email})`);
+      }
+    }
+  } catch (err) {
+    console.error('❌ [CRON] Erro na auditoria direta para provedores:', err);
+  }
 }
 
 /**
  * Executa a auditoria de vencimentos para todas as empresas configuradas.
+ * Focado na Segurança/Mandante da Unidade.
  */
 export async function runExpirationAudit() {
   try {
@@ -97,24 +155,35 @@ export async function processCompanyComplianceReport(companyId: string, companyN
   return { success: true, message: 'Relatório enviado com sucesso.', sent: true };
 }
 
-function generateHtmlReport(companyName: string, asoAlerts: any[], trainingAlerts: any[]) {
+function generateHtmlReport(companyName: string, asoAlerts: any[], trainingAlerts: any[], isDirectToVendor = false) {
   const appUrl = process.env.APP_URL || 'https://portall.ctdibrasil.com.br';
-  const logoUrl = `${appUrl}/LogoCompleto.png`;
   const today = format(new Date(), "dd 'de' MMMM 'de' yyyy", { locale: ptBR });
+
+  // Embutir Logo em Base64
+  let logoBase64 = '';
+  try {
+    const logoPath = path.join(process.cwd(), 'public', 'LogoCompleto.png');
+    if (fs.existsSync(logoPath)) {
+      const bitmap = fs.readFileSync(logoPath);
+      logoBase64 = `data:image/png;base64,${bitmap.toString('base64')}`;
+    }
+  } catch (err) {
+    console.error('Erro ao ler logo para e-mail:', err);
+  }
 
   // Agrupar pendências por pessoa (usando documento como chave)
   const peopleMap: Record<string, { name: string; empresa: string; docs: { type: string; venc: Date; isVencido: boolean }[] }> = {};
 
   asoAlerts.forEach(a => {
     const doc = a.documento;
-    if (!peopleMap[doc]) peopleMap[doc] = { name: a.nome_completo, empresa: a.empresa_nome || 'N/A', docs: [] };
+    if (!peopleMap[doc]) peopleMap[doc] = { name: a.nome_completo, empresa: a.empresa_nome || companyName, docs: [] };
     const venc = addDays(new Date(a.aso_data_realizacao), 365);
     peopleMap[doc].docs.push({ type: 'ASO', venc, isVencido: venc < new Date() });
   });
 
   trainingAlerts.forEach(t => {
     const doc = t.documento;
-    if (!peopleMap[doc]) peopleMap[doc] = { name: t.nome_completo, empresa: t.empresa_nome || 'N/A', docs: [] };
+    if (!peopleMap[doc]) peopleMap[doc] = { name: t.nome_completo, empresa: t.empresa_nome || companyName, docs: [] };
     const venc = new Date(t.data_vencimento);
     peopleMap[doc].docs.push({ type: t.treinamento_nome, venc, isVencido: venc < new Date() });
   });
@@ -137,24 +206,27 @@ function generateHtmlReport(companyName: string, asoAlerts: any[], trainingAlert
     `;
   }).join('');
 
+  const introText = isDirectToVendor 
+    ? `Identificamos colaboradores da sua empresa com documentos vencidos ou próximos ao vencimento (prazo de 15 dias). Por favor, regularize a documentação para evitar o bloqueio de acesso dos seus colaboradores na portaria.`
+    : `Segue a listagem detalhada de prestadores de serviço com pendências de documentação (vencidos ou próximos ao vencimento). A falta de regularização impedirá o acesso às dependências da unidade.`;
+
   return `
     <div style="font-family: Arial, sans-serif; background-color: #f3f4f6; padding: 30px 10px;">
       <div style="max-width: 800px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); overflow: hidden; border: 1px solid #e5e7eb;">
         
         <!-- Header -->
-        <div style="background-color: #ffffff; padding: 20px; border-bottom: 3px solid #001A33; text-align: left; display: flex; align-items: center; gap: 20px;">
-           <img src="${logoUrl}" alt="PortALL" style="height: 50px; display: block;" />
-           <div style="margin-left: 20px;">
+        <div style="background-color: #ffffff; padding: 20px; border-bottom: 3px solid #001A33; text-align: left;">
+           ${logoBase64 ? `<img src="${logoBase64}" alt="PortALL" style="height: 50px; margin-bottom: 15px; display: block;" />` : ''}
+           <div>
              <h1 style="color: #001A33; margin: 0; font-size: 18px; font-weight: bold;">RELATÓRIO DE CONFORMIDADE DE TERCEIROS</h1>
-             <p style="color: #6b7280; margin: 2px 0 0; font-size: 12px;">UNIDADE: <strong>${companyName.toUpperCase()}</strong> | DATA: ${today}</p>
+             <p style="color: #6b7280; margin: 2px 0 0; font-size: 12px;">UNIDADE/PROVEDOR: <strong>${companyName.toUpperCase()}</strong> | DATA: ${today}</p>
            </div>
         </div>
 
         <div style="padding: 25px;">
           <p style="color: #1f2937; font-size: 14px; line-height: 1.5; margin-bottom: 20px;">
             Prezados,<br><br>
-            Segue a listagem detalhada de prestadores de serviço com pendências de documentação (vencidos ou próximos ao vencimento). 
-            A falta de regularização impedirá o acesso às dependências da unidade.
+            ${introText}
           </p>
 
           <table style="width: 100%; border-collapse: collapse; margin-bottom: 25px; border: 1px solid #d1d5db;">

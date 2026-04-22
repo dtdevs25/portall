@@ -2018,6 +2018,7 @@ function EmpresasTerceiroView({ profile }: { profile: UserProfile }) {
   const EmpresaForm = ({ item, onSave, onClose }: { item: EmpresaTerceiro | null; onSave: () => void; onClose: () => void }) => {
     const [name, setName] = useState(item?.name || '');
     const [cnpj, setCnpj] = useState(item?.cnpj || '');
+    const [email, setEmail] = useState(item?.email || '');
     const [selectedCompanyId, setSelectedCompanyId] = useState(item?.companyId || '');
     const [saving, setSaving] = useState(false);
 
@@ -2027,6 +2028,7 @@ function EmpresasTerceiroView({ profile }: { profile: UserProfile }) {
         const payload = { 
           name, 
           cnpj: cnpj.replace(/\D/g, ''), 
+          email: email.trim().toLowerCase(),
           companyId: (profile.role === 'master' || profile.role === 'admin') ? selectedCompanyId : profile.companyId 
         };
         if (item) await api.put(`/empresas-terceiro/${item.id}`, payload);
@@ -2044,6 +2046,7 @@ function EmpresasTerceiroView({ profile }: { profile: UserProfile }) {
         )}
         <Input label="Nome da Empresa de Origem" value={name} onChange={setName} required placeholder="Ex: CTDI, Logística Express..." />
         <Input label="CNPJ" value={cnpj} onChange={v => setCnpj(maskCNPJ(v))} placeholder="00.000.000/0000-00" />
+        <Input label="E-mail de Notificação (Provedor)" value={email} onChange={setEmail} type="email" placeholder="contato@empresa.com.br" />
         <div className="flex justify-end gap-2 pt-2">
           <Button variant="ghost" onClick={onClose}>Cancelar</Button>
           <Button type="submit" disabled={saving}>{saving ? 'Salvando...' : 'Salvar Empresa'}</Button>
@@ -2056,8 +2059,13 @@ function EmpresasTerceiroView({ profile }: { profile: UserProfile }) {
       title="Provedores" subtitle="Gerencie as empresas prestadoras de serviço (terceirizadas)."
       endpoint="/empresas-terceiro" icon={Building2}
       columns={[
-        { label: 'Nome / Razão Social', render: e => <span className="font-medium">{e.name}</span> },
+        { label: 'Nome / Razão Social', render: e => <div className="font-semibold text-slate-800">{e.name}</div> },
         { label: 'CNPJ', render: e => e.cnpj || '—' },
+        { label: 'E-mail de Notificação', render: e => (
+          <div className="flex items-center gap-1.5 text-xs text-slate-500">
+            <Mail size={12} className="text-slate-400" /> {e.email || 'Não configurado'}
+          </div>
+        )},
       ]}
       renderForm={(item, onSave, onClose) => <EmpresaForm item={item as any} onSave={onSave} onClose={onClose} />}
     />
