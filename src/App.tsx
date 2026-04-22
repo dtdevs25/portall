@@ -1870,6 +1870,20 @@ function PessoasView({ profile }: { profile: UserProfile }) {
           />
         )}
       </AnimatePresence>
+
+      <AnimatePresence>
+        {successMsg && (
+          <Modal title="Sucesso" onClose={() => setSuccessMsg('')} size="sm">
+            <div className="text-center space-y-4">
+              <div className="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto">
+                <CheckCircle2 size={24} />
+              </div>
+              <p className="text-sm font-medium text-slate-600">{successMsg}</p>
+              <Button className="w-full" onClick={() => setSuccessMsg('')}>Entendido</Button>
+            </div>
+          </Modal>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -2231,6 +2245,8 @@ function CompaniesView({ profile }: { profile: UserProfile }) {
   const [showBranchFor, setShowBranchFor] = useState<Company | null>(null);   // parent company
   const [showAdminsFor, setShowAdminsFor] = useState<Company | null>(null);   // company managing admins
   const [editTarget, setEditTarget] = useState<Company | null>(null);         // company/branch being edited
+  const [sendingReport, setSendingReport] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState('');
 
   // Forms
   const [companyForm, setCompanyForm] = useState({ name: '', cnpj: '', requiresSafetyTerm: false });
@@ -2364,6 +2380,18 @@ function CompaniesView({ profile }: { profile: UserProfile }) {
     finally { setSaving(false); }
   };
 
+  const handleSendReport = async (company: Company) => {
+    setSendingReport(company.id);
+    try {
+      const res = await api.post<any>(`/companies/${company.id}/send-report`, {});
+      setSuccessMsg(res.sent ? `Relatório enviado com sucesso para os contatos da empresa ${company.name}.` : res.message);
+    } catch (err: any) {
+      alert(err.error || 'Erro ao enviar relatório.');
+    } finally {
+      setSendingReport(null);
+    }
+  };
+
   // Separar matrizes de filiais
   const matrices = companies
     .filter(c => !c.parentId)
@@ -2473,6 +2501,17 @@ function CompaniesView({ profile }: { profile: UserProfile }) {
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 transition-all"
                   >
                     <Plus size={14} /> Filial
+                  </button>
+                  <button
+                    onClick={() => handleSendReport(company)}
+                    disabled={!!sendingReport}
+                    className={cn(
+                      "p-1.5 rounded-xl transition-all",
+                      sendingReport === company.id ? "bg-blue-50 text-blue-600 animate-pulse" : "text-slate-400 hover:text-blue-600 hover:bg-blue-50"
+                    )}
+                    title="Disparar Relatório de Conformidade por E-mail"
+                  >
+                    <Mail size={14} className={sendingReport === company.id ? "animate-spin" : ""} />
                   </button>
                   <button
                     onClick={() => { 
@@ -2774,6 +2813,20 @@ function CompaniesView({ profile }: { profile: UserProfile }) {
             onCancel={() => setDeleteTarget(null)}
             loading={saving}
           />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {successMsg && (
+          <Modal title="Sucesso" onClose={() => setSuccessMsg('')} size="sm">
+            <div className="text-center space-y-4">
+              <div className="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto">
+                <CheckCircle2 size={24} />
+              </div>
+              <p className="text-sm font-medium text-slate-600">{successMsg}</p>
+              <Button className="w-full" onClick={() => setSuccessMsg('')}>Entendido</Button>
+            </div>
+          </Modal>
         )}
       </AnimatePresence>
     </div>

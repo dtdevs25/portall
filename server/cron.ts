@@ -21,71 +21,78 @@ export function initCronJobs() {
 }
 
 /**
- * Executa a auditoria de vencimentos e envia e-mails para as empresas configuradas.
+ * Executa a auditoria de vencimentos para todas as empresas configuradas.
  */
 export async function runExpirationAudit() {
   try {
-    // 1. Buscar todas as empresas que possuem e-mails de notificação configurados
     const companies = await query<{ id: string, name: string }>(
       'SELECT DISTINCT c.id, c.name FROM companies c JOIN notification_emails n ON c.id = n.company_id WHERE c.is_active = TRUE'
     );
 
     for (const company of companies) {
-      // 2. Buscar e-mails de destino para esta empresa
-      const emailRows = await query<{ email: string }>(
-        'SELECT email FROM notification_emails WHERE company_id = $1',
-        [company.id]
-      );
-      const recipients = emailRows.map(r => r.email);
-      if (recipients.length === 0) continue;
-
-      // 3. Buscar pessoas (prestadores) ativos com documentos vencendo em 45 dias
-      // Vamos buscar ASO e Treinamentos
-      const deadline = addDays(new Date(), 45);
-      const now = new Date();
-
-      // Busca Pessoas com ASO vencido ou a vencer
-      const asoAlerts = await query<any>(
-        `SELECT nome_completo, documento, aso_data_realizacao 
-         FROM pessoas 
-         WHERE company_id = $1 
-           AND is_active = TRUE 
-           AND tipo_acesso = 'prestador'
-           AND aso_data_realizacao IS NOT NULL
-           AND (aso_data_realizacao + interval '1 year' <= $2)`,
-        [company.id, deadline]
-      );
-
-      // Busca Treinamentos vencidos ou a vencer
-      const trainingAlerts = await query<any>(
-        `SELECT p.nome_completo, p.documento, t.nome as treinamento_nome, tp.data_vencimento
-         FROM treinamentos_pessoa tp
-         JOIN pessoas p ON tp.pessoa_id = p.id
-         JOIN tipos_treinamento t ON tp.treinamento_id = t.id
-         WHERE p.company_id = $1
-           AND p.is_active = TRUE
-           AND tp.data_vencimento <= $2`,
-        [company.id, deadline]
-      );
-
-      if (asoAlerts.length === 0 && trainingAlerts.length === 0) {
-        console.log(`[CRON] Empresa ${company.name}: Nada a reportar.`);
-        continue;
-      }
-
-      // 4. Formatar Relatório HTML
-      const reportHtml = generateHtmlReport(company.name, asoAlerts, trainingAlerts);
-
-      // 5. Enviar E-mail
-      await sendMail({
-        to: recipients,
-        subject: `🚨 [PortALL] Relatório de Vencimentos - ${company.name}`,
-        html: reportHtml
-      });
+      await processCompanyComplianceReport(company.id, company.name);
     }
   } catch (err) {
     console.error('❌ [CRON] Erro durante auditoria de vencimentos:', err);
   }
+}
+
+/**
+ * Processa e envia o relatório de conformidade para uma empresa específica.
+ * Pode ser chamado via CRON ou manualmente via API.
+ */
+export async function processCompanyComplianceReport(companyId: string, companyName: string) {
+  // 1. Buscar e-mails de destino para esta empresa
+  const emailRows = await query<{ email: string }>(
+    'SELECT email FROM notification_emails WHERE company_id = $1',
+    [companyId]
+  );
+  const recipients = emailRows.map(r => r.email);
+  if (recipients.length === 0) return { success: false, message: 'Nenhum e-mail de notificação configurado.' };
+
+  // 2. Buscar pessoas (prestadores) ativos com documentos vencendo em 45 dias
+  const deadline = addDays(new Date(), 45);
+
+  // Busca Pessoas com ASO vencido ou a vencer
+  const asoAlerts = await query<any>(
+    `SELECT nome_completo, documento, aso_data_realizacao 
+     FROM pessoas 
+     WHERE company_id = $1 
+       AND is_active = TRUE 
+       AND tipo_acesso = 'prestador'
+       AND aso_data_realizacao IS NOT NULL
+       AND (aso_data_realizacao + interval '1 year' <= $2)`,
+    [companyId, deadline]
+  );
+
+  // Busca Treinamentos vencidos ou a vencer
+  const trainingAlerts = await query<any>(
+    `SELECT p.nome_completo, p.documento, t.nome as treinamento_nome, tp.data_vencimento
+     FROM treinamentos_pessoa tp
+     JOIN pessoas p ON tp.pessoa_id = p.id
+     JOIN tipos_treinamento t ON tp.treinamento_id = t.id
+     WHERE p.company_id = $1
+       AND p.is_active = TRUE
+       AND tp.data_vencimento <= $2`,
+    [companyId, deadline]
+  );
+
+  if (asoAlerts.length === 0 && trainingAlerts.length === 0) {
+    console.log(`[CRON/API] Empresa ${companyName}: Nada a reportar.`);
+    return { success: true, message: 'Nada a reportar para esta empresa.', sent: false };
+  }
+
+  // 3. Formatar Relatório HTML
+  const reportHtml = generateHtmlReport(companyName, asoAlerts, trainingAlerts);
+
+  // 4. Enviar E-mail
+  await sendMail({
+    to: recipients,
+    subject: `🚨 [PortALL] Relatório de Vencimentos - ${companyName}`,
+    html: reportHtml
+  });
+
+  return { success: true, message: 'Relatório enviado com sucesso.', sent: true };
 }
 
 function generateHtmlReport(companyName: string, asoAlerts: any[], trainingAlerts: any[]) {

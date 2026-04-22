@@ -1,6 +1,7 @@
 import { Router, Response } from 'express';
 import { requireAuth, requireMaster, AuthRequest } from '../auth/middleware.js';
 import { query, queryOne } from '../db.js';
+import { processCompanyComplianceReport } from '../cron.js';
 
 const router = Router();
 
@@ -277,21 +278,51 @@ router.post('/:id/admins', requireMaster, async (req: AuthRequest, res: Response
 });
 
 // ============================================================
-// DELETE /api/companies/:id/admins/:userId — Desvincula admin (Master only)
+// POST /api/companies/:id/send-report — Disparo manual do relatório de conformidade
 // ============================================================
-router.delete('/:id/admins/:userId', requireMaster, async (req: AuthRequest, res: Response) => {
+router.post('/:id/send-report', async (req: AuthRequest, res: Response) => {
   try {
-    const { id, userId } = req.params;
+    const { id } = req.params;
 
-    await query(
-      `DELETE FROM user_companies WHERE user_id = $1 AND company_id = $2`,
-      [userId, id]
+    // 1. Verificar permissão (Master ou Admin vinculado)
+    if (req.user?.role !== 'master') {
+      const hasAccess = await queryOne(
+        `SELECT id FROM companies 
+         WHERE id = $1 AND (
+           id IN (SELECT company_id FROM user_companies WHERE user_id = $2)
+           OR 
+           parent_id IN (SELECT company_id FROM user_companies WHERE user_id = $2)
+         )`,
+        [id, req.user!.userId]
+      );
+      if (!hasAccess) {
+        res.status(403).json({ error: 'Permissão negada para solicitar relatório desta empresa.' });
+        return;
+      }
+    }
+
+    // 2. Buscar dados básicos da empresa
+    const company = await queryOne<{ name: string }>(
+      'SELECT name FROM companies WHERE id = $1', [id]
     );
 
-    res.json({ message: 'Vínculo removido com sucesso.' });
+    if (!company) {
+      res.status(404).json({ error: 'Empresa não encontrada.' });
+      return;
+    }
+
+    // 3. Processar e enviar o relatório
+    const result = await processCompanyComplianceReport(id, company.name);
+
+    if (!result.success) {
+      res.status(400).json({ error: result.message });
+      return;
+    }
+
+    res.json(result);
   } catch (err) {
-    console.error('DELETE /companies/:id/admins/:userId error:', err);
-    res.status(500).json({ error: 'Erro ao remover vínculo.' });
+    console.error('POST /companies/:id/send-report error:', err);
+    res.status(500).json({ error: 'Erro interno ao processar relatório.' });
   }
 });
 
