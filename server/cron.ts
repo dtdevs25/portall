@@ -53,24 +53,26 @@ export async function processCompanyComplianceReport(companyId: string, companyN
   // 2. Buscar pessoas (prestadores) ativos com documentos vencendo em 45 dias
   const deadline = addDays(new Date(), 45);
 
-  // Busca Pessoas com ASO vencido ou a vencer
+  // Busca Pessoas com ASO vencido ou a vencer + Empresa Terceira
   const asoAlerts = await query<any>(
-    `SELECT nome_completo, documento, aso_data_realizacao 
-     FROM pessoas 
-     WHERE company_id = $1 
-       AND is_active = TRUE 
-       AND tipo_acesso = 'prestador'
-       AND aso_data_realizacao IS NOT NULL
-       AND (aso_data_realizacao + interval '1 year' <= $2)`,
+    `SELECT p.nome_completo, p.documento, p.aso_data_realizacao, et.name as empresa_nome
+     FROM pessoas p
+     LEFT JOIN empresas_terceiro et ON p.empresa_origem_id = et.id
+     WHERE p.company_id = $1 
+       AND p.is_active = TRUE 
+       AND p.tipo_acesso = 'prestador'
+       AND p.aso_data_realizacao IS NOT NULL
+       AND (p.aso_data_realizacao + interval '1 year' <= $2)`,
     [companyId, deadline]
   );
 
-  // Busca Treinamentos vencidos ou a vencer
+  // Busca Treinamentos vencidos ou a vencer + Empresa Terceira
   const trainingAlerts = await query<any>(
-    `SELECT p.nome_completo, p.documento, t.nome as treinamento_nome, tp.data_vencimento
+    `SELECT p.nome_completo, p.documento, t.nome as treinamento_nome, tp.data_vencimento, et.name as empresa_nome
      FROM treinamentos_pessoa tp
      JOIN pessoas p ON tp.pessoa_id = p.id
      JOIN tipos_treinamento t ON tp.treinamento_id = t.id
+     LEFT JOIN empresas_terceiro et ON p.empresa_origem_id = et.id
      WHERE p.company_id = $1
        AND p.is_active = TRUE
        AND tp.data_vencimento <= $2`,
@@ -101,35 +103,34 @@ function generateHtmlReport(companyName: string, asoAlerts: any[], trainingAlert
   const today = format(new Date(), "dd 'de' MMMM 'de' yyyy", { locale: ptBR });
 
   // Agrupar pendências por pessoa (usando documento como chave)
-  const peopleMap: Record<string, { name: string; docs: { type: string; venc: Date; isVencido: boolean }[] }> = {};
+  const peopleMap: Record<string, { name: string; empresa: string; docs: { type: string; venc: Date; isVencido: boolean }[] }> = {};
 
   asoAlerts.forEach(a => {
     const doc = a.documento;
-    if (!peopleMap[doc]) peopleMap[doc] = { name: a.nome_completo, docs: [] };
+    if (!peopleMap[doc]) peopleMap[doc] = { name: a.nome_completo, empresa: a.empresa_nome || 'N/A', docs: [] };
     const venc = addDays(new Date(a.aso_data_realizacao), 365);
     peopleMap[doc].docs.push({ type: 'ASO', venc, isVencido: venc < new Date() });
   });
 
   trainingAlerts.forEach(t => {
     const doc = t.documento;
-    if (!peopleMap[doc]) peopleMap[doc] = { name: t.nome_completo, docs: [] };
+    if (!peopleMap[doc]) peopleMap[doc] = { name: t.nome_completo, empresa: t.empresa_nome || 'N/A', docs: [] };
     const venc = new Date(t.data_vencimento);
     peopleMap[doc].docs.push({ type: t.treinamento_nome, venc, isVencido: venc < new Date() });
   });
 
-  const rowsHtml = Object.values(peopleMap).map(p => {
+  const rowsHtml = Object.values(peopleMap).map((p, idx) => {
     const docList = p.docs.map(d => {
-      const color = d.isVencido ? '#e53e3e' : '#d69e2e';
+      const color = d.isVencido ? '#d91e18' : '#e67e22';
       const statusText = d.isVencido ? 'VENCIDO' : 'A VENCER';
-      return `<div style="margin-bottom: 4px;"><span style="color: ${color}; font-weight: bold;">[${statusText}]</span> ${d.type} (${format(d.venc, 'dd/MM/yyyy')})</div>`;
+      return `<div style="margin-bottom: 2px;">• <span style="color: ${color}; font-weight: bold;">[${statusText}]</span> ${d.type} (${format(d.venc, 'dd/MM/yyyy')})</div>`;
     }).join('');
 
     return `
-      <tr>
-        <td style="padding: 16px 12px; border-bottom: 1px solid #edf2f7; font-size: 14px; vertical-align: top;">
-          <div style="font-weight: 700; color: #1a202c;">${p.name}</div>
-        </td>
-        <td style="padding: 16px 12px; border-bottom: 1px solid #edf2f7; font-size: 13px; color: #4a5568; line-height: 1.5;">
+      <tr style="background-color: ${idx % 2 === 0 ? '#ffffff' : '#f9f9f9'};">
+        <td style="padding: 12px; border: 1px solid #d1d5db; font-size: 13px; color: #111827; font-weight: 600;">${p.name}</td>
+        <td style="padding: 12px; border: 1px solid #d1d5db; font-size: 13px; color: #374151;">${p.empresa}</td>
+        <td style="padding: 12px; border: 1px solid #d1d5db; font-size: 12px; color: #4b5563; line-height: 1.4;">
           ${docList}
         </td>
       </tr>
@@ -137,30 +138,31 @@ function generateHtmlReport(companyName: string, asoAlerts: any[], trainingAlert
   }).join('');
 
   return `
-    <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f0f4f8; padding: 40px 10px;">
-      <div style="max-width: 650px; margin: 0 auto; background-color: #ffffff; border-radius: 20px; box-shadow: 0 15px 35px rgba(0,0,0,0.08); overflow: hidden; border: 1px solid #e2e8f0;">
+    <div style="font-family: Arial, sans-serif; background-color: #f3f4f6; padding: 30px 10px;">
+      <div style="max-width: 800px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); overflow: hidden; border: 1px solid #e5e7eb;">
         
         <!-- Header -->
-        <div style="background-color: #001A33; padding: 30px; text-align: center;">
-          <img src="${logoUrl}" alt="PortALL" style="max-height: 60px; margin-bottom: 20px;" />
-          <h1 style="color: #ffffff; margin: 0; font-size: 22px; font-weight: 800; letter-spacing: -0.01em; text-transform: uppercase;">Relatório de Auditoria</h1>
-          <p style="color: #94a3b8; margin: 8px 0 0; font-size: 13px; font-weight: 600;">UNIDADE: ${companyName.toUpperCase()}</p>
+        <div style="background-color: #ffffff; padding: 20px; border-bottom: 3px solid #001A33; text-align: left; display: flex; align-items: center; gap: 20px;">
+           <img src="${logoUrl}" alt="PortALL" style="height: 50px; display: block;" />
+           <div style="margin-left: 20px;">
+             <h1 style="color: #001A33; margin: 0; font-size: 18px; font-weight: bold;">RELATÓRIO DE CONFORMIDADE DE TERCEIROS</h1>
+             <p style="color: #6b7280; margin: 2px 0 0; font-size: 12px;">UNIDADE: <strong>${companyName.toUpperCase()}</strong> | DATA: ${today}</p>
+           </div>
         </div>
 
-        <div style="padding: 35px;">
-          <div style="margin-bottom: 30px;">
-            <p style="color: #2d3748; font-size: 16px; font-weight: 700; margin-bottom: 8px;">Equipe de Segurança,</p>
-            <p style="color: #4a5568; font-size: 14px; line-height: 1.6; margin: 0;">
-              Abaixo listamos os prestadores de serviço com documentos vencidos ou com vencimento próximo (45 dias). 
-              <strong>Atenção:</strong> Pendências de documentos resultam no bloqueio automático do acesso na portaria.
-            </p>
-          </div>
+        <div style="padding: 25px;">
+          <p style="color: #1f2937; font-size: 14px; line-height: 1.5; margin-bottom: 20px;">
+            Prezados,<br><br>
+            Segue a listagem detalhada de prestadores de serviço com pendências de documentação (vencidos ou próximos ao vencimento). 
+            A falta de regularização impedirá o acesso às dependências da unidade.
+          </p>
 
-          <table style="width: 100%; border-collapse: collapse; margin-bottom: 30px;">
-            <thead style="background-color: #f8fafc;">
+          <table style="width: 100%; border-collapse: collapse; margin-bottom: 25px; border: 1px solid #d1d5db;">
+            <thead style="background-color: #f3f4f6;">
               <tr>
-                <th style="padding: 12px; text-align: left; font-size: 11px; font-weight: 800; color: #64748b; text-transform: uppercase; border-bottom: 2px solid #e2e8f0;">Colaborador</th>
-                <th style="padding: 12px; text-align: left; font-size: 11px; font-weight: 800; color: #64748b; text-transform: uppercase; border-bottom: 2px solid #e2e8f0;">Documentos e Prazos</th>
+                <th style="padding: 12px; text-align: left; font-size: 12px; font-weight: bold; color: #374151; border: 1px solid #d1d5db; text-transform: uppercase;">Colaborador</th>
+                <th style="padding: 12px; text-align: left; font-size: 12px; font-weight: bold; color: #374151; border: 1px solid #d1d5db; text-transform: uppercase;">Empresa Terceira</th>
+                <th style="padding: 12px; text-align: left; font-size: 12px; font-weight: bold; color: #374151; border: 1px solid #d1d5db; text-transform: uppercase;">Pendências e Vencimentos</th>
               </tr>
             </thead>
             <tbody>
@@ -168,23 +170,23 @@ function generateHtmlReport(companyName: string, asoAlerts: any[], trainingAlert
             </tbody>
           </table>
 
-          <div style="text-align: center; margin-bottom: 35px;">
-            <a href="${appUrl}/terceiros" style="display: inline-block; background-color: #2563eb; color: #ffffff; padding: 15px 35px; border-radius: 12px; text-decoration: none; font-weight: 700; font-size: 15px; box-shadow: 0 4px 15px rgba(37, 99, 235, 0.35);">
-              Regularizar no Portal PortALL
+          <div style="text-align: center; margin-bottom: 25px;">
+            <a href="${appUrl}/terceiros" style="display: inline-block; background-color: #001A33; color: #ffffff; padding: 12px 25px; border-radius: 4px; text-decoration: none; font-weight: bold; font-size: 14px; text-transform: uppercase;">
+              Acessar Portal de Gestão
             </a>
           </div>
 
-          <div style="background-color: #f1f5f9; border-radius: 12px; padding: 15px; text-align: center;">
-            <p style="margin: 0; font-size: 11px; color: #64748b; line-height: 1.4;">
-              Relatório gerado em <strong>${today}</strong> pelo sistema PortALL.<br>
-              Este é um aviso preventivo para garantir a continuidade operacional.
+          <div style="background-color: #fffbeb; border: 1px solid #fde68a; padding: 15px; border-radius: 4px;">
+            <p style="margin: 0; font-size: 12px; color: #92400e; font-weight: bold;">
+              ⚠️ IMPORTANTE: Documentos vencidos bloqueiam o acesso automaticamente. Por favor, regularize com antecedência.
             </p>
           </div>
         </div>
 
-        <div style="background-color: #f8fafc; padding: 20px; text-align: center; border-top: 1px solid #e2e8f0;">
-          <p style="margin: 0; font-size: 10px; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em;">
-            PortALL &bull; Gestão de Acessos e Conformidade
+        <div style="background-color: #f9fafb; padding: 15px; text-align: center; border-top: 1px solid #e5e7eb;">
+          <p style="margin: 0; font-size: 11px; color: #9ca3af;">
+            PortALL &bull; Sistema de Gestão de Acessos e Conformidade<br>
+            Este é um e-mail automático gerado pelo sistema.
           </p>
         </div>
       </div>
