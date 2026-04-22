@@ -822,8 +822,11 @@ function PortariaView({ profile }: { profile: UserProfile }) {
     const pessoa = pessoas.find(p => p.id === pessoaId);
     
     if (status === 'entrada' && pessoa?.tipoAcesso === 'prestador') {
-      const currentUnit = (window as any).__COMPANIES__?.find((c: any) => c.id === profile.companyId);
-      if (currentUnit?.requiresSafetyTerm && !pessoa.termoAssinadoEm) {
+      // Busca a unidade de destino da pessoa para saber se ela exige termo de segurança
+      const companies = (window as any).__COMPANIES__ || [];
+      const personUnit = companies.find((c: any) => c.id === pessoa.companyId);
+      
+      if (personUnit?.requiresSafetyTerm && !pessoa.termoAssinadoEm) {
         setTermPrompt(pessoa);
         return;
       }
@@ -869,7 +872,9 @@ function PortariaView({ profile }: { profile: UserProfile }) {
     bloqueado: baseFiltered.filter(p => p.statusAcesso === 'bloqueado').length,
   };
 
-  const shareUrl = `${window.location.origin}${window.location.pathname}?termToken=${termPrompt?.id}`;
+  const shareUrl = termPrompt 
+    ? `${window.location.origin}${window.location.pathname}?termToken=${termPrompt.id}`
+    : '';
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">
