@@ -1392,6 +1392,8 @@ function PessoasView({ profile }: { profile: UserProfile }) {
   const [coSearch, setCoSearch] = useState('');
   const [origSearch, setOrigSearch] = useState('');
   const [showInactive, setShowInactive] = useState(false);
+  const [situationFilter, setSituationFilter] = useState<'all' | 'active' | 'inactive'>('active');
+  const [successMsg, setSuccessMsg] = useState('');
 
   useEffect(() => { fetchAll(); }, []);
 
@@ -1470,22 +1472,32 @@ function PessoasView({ profile }: { profile: UserProfile }) {
     }
   }, [calculateAutoExpiration, form.liberadoAte]);
 
-  const fetchAll = async () => {
+  useEffect(() => { 
+    const inc = situationFilter === 'inactive' || situationFilter === 'all';
+    fetchAll(inc); 
+  }, [situationFilter]);
+
+  const fetchAll = async (inc: boolean = false) => {
     try {
+      const include = inc || situationFilter === 'inactive' || situationFilter === 'all';
       const [p, e, t, c] = await Promise.all([
-        api.get<Pessoa[]>(`/pessoas?includeInactive=${showInactive}`),
+        api.get<Pessoa[]>(`/pessoas?includeInactive=${include}`),
         api.get<EmpresaTerceiro[]>('/empresas-terceiro'),
         api.get<TipoTreinamento[]>('/treinamentos/tipos'),
         api.get<Company[]>('/companies'),
       ]);
-      setPessoas(p || []);
+      
+      // Aplicar filtro local de situação para Ativos/Inativos se necessário
+      let data = p || [];
+      if (situationFilter === 'active') data = data.filter(x => x.isActive);
+      if (situationFilter === 'inactive') data = data.filter(x => !x.isActive);
+
+      setPessoas(data);
       setEmpresasTerceiro(e || []);
       setTreiTipos(t || []);
       setCompanies(c || []);
     } catch {}
   };
-
-  useEffect(() => { fetchAll(); }, [showInactive]);
 
   const openNew = () => { setForm(emptyPessoaForm()); setEditTarget(null); setShowForm(true); };
   
@@ -1530,8 +1542,10 @@ function PessoasView({ profile }: { profile: UserProfile }) {
   const handleToggleStatus = async (p: Pessoa) => {
     setSaving(true);
     try {
-      await api.patch(`/pessoas/${p.id}/status`, { isActive: !p.isActive });
-      fetchAll();
+      const newStatus = !p.isActive;
+      await api.patch(`/pessoas/${p.id}/status`, { isActive: newStatus });
+      await fetchAll();
+      setSuccessMsg(newStatus ? `"${p.nomeCompleto}" reativado com sucesso!` : `"${p.nomeCompleto}" desativado com sucesso.`);
     } catch (err: any) { alert(err.error || 'Erro ao alterar status.'); }
     finally { setSaving(false); }
   };
@@ -1583,18 +1597,12 @@ function PessoasView({ profile }: { profile: UserProfile }) {
           <option value="bloqueado">Bloqueados</option>
         </select>
 
-        <div className="flex items-center gap-2 px-3 py-2 bg-white rounded-xl border border-slate-200 shadow-sm">
-          <input 
-            type="checkbox" 
-            id="show_inactive_toggle"
-            checked={showInactive}
-            onChange={e => setShowInactive(e.target.checked)}
-            className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300"
-          />
-          <label htmlFor="show_inactive_toggle" className="text-xs font-bold text-slate-600 cursor-pointer select-none">
-            Mostrar Inativos
-          </label>
-        </div>
+        <select value={situationFilter} onChange={e => setSituationFilter(e.target.value as any)}
+          className="px-3 py-2 rounded-xl border border-slate-200 text-sm bg-white outline-none shadow-sm font-semibold text-slate-600">
+          <option value="active">Situação: Ativos</option>
+          <option value="inactive">Situação: Inativos</option>
+          <option value="all">Situação: Todos</option>
+        </select>
       </div>
 
       {/* Table */}
