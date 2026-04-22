@@ -2601,6 +2601,17 @@ function CompaniesView({ profile }: { profile: UserProfile }) {
                       </div>
                       <div className="flex items-center justify-end gap-1 group">
                         <button
+                          onClick={() => handleSendReport(branch)}
+                          disabled={!!sendingReport}
+                          className={cn(
+                            "p-2 rounded-xl border border-slate-100 transition-all",
+                            sendingReport === branch.id ? "bg-blue-50 text-blue-600 animate-pulse" : "text-slate-400 hover:text-blue-600 hover:bg-white shadow-sm"
+                          )}
+                          title="Disparar Relatório desta Unidade"
+                        >
+                          <Mail size={14} className={sendingReport === branch.id ? "animate-spin" : ""} />
+                        </button>
+                        <button
                           onClick={() => { 
                             setCompanyForm({ 
                               name: branch.name, 
@@ -2608,6 +2619,7 @@ function CompaniesView({ profile }: { profile: UserProfile }) {
                               requiresSafetyTerm: !!branch.requiresSafetyTerm
                             }); 
                             setEditTarget(branch); 
+                            setShowBranchFor(company); // abre o modal como edição de filial
                           }}
                           className="p-2 rounded-xl text-slate-400 hover:text-blue-600 hover:bg-white shadow-sm border border-slate-100 transition-all"
                           title="Editar Unidade"
