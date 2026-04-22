@@ -2299,7 +2299,11 @@ function CompaniesView({ profile }: { profile: UserProfile }) {
       ]);
       setCompanies(comps || []);
       if (profile.role === 'master') {
+        // Master vê todos para vincular
         setAllAdmins((users || []).filter(u => u.role === 'admin' || u.role === 'viewer'));
+      } else {
+        // Admin não vê Master na listagem de vinculação (segurança)
+        setAllAdmins((users || []).filter(u => (u.role === 'admin' || u.role === 'viewer') && u.role !== 'master'));
       }
     } catch {}
   };
@@ -2741,9 +2745,11 @@ function CompaniesView({ profile }: { profile: UserProfile }) {
                   subtitle="Cadastre usuários com nível Administrador primeiro." />
               ) : (
                 <div className="space-y-2 max-h-96 overflow-y-auto">
-                  {allAdmins.map(admin => {
-                    const linked = (linkedAdmins[showAdminsFor.id] || []).some(a => (a.uid || a.id) === (admin.uid || admin.id));
-                    const isToggling = togglingAdmin === (admin.uid || admin.id);
+                  {allAdmins
+                    .filter(admin => admin.role !== 'master') // Blindagem: Admin nunca vê Master aqui
+                    .map(admin => {
+                      const linked = (linkedAdmins[showAdminsFor.id] || []).some(a => (a.uid || a.id) === (admin.uid || admin.id));
+                      const isToggling = togglingAdmin === (admin.uid || admin.id);
                     return (
                       <div key={admin.uid || admin.id}
                         className={cn(
@@ -3126,11 +3132,14 @@ function UsuariosView({ profile }: { profile: UserProfile }) {
     return companies.find(c => c.id === companyId)?.name || '—';
   };
 
-  const filtered = users.filter(u =>
-    !search ||
-    (u.displayName || '').toLowerCase().includes(search.toLowerCase()) ||
-    (u.email || '').toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = users.filter(u => {
+    // Blindagem: Admin não vê Master
+    if (profile.role !== 'master' && u.role === 'master') return false;
+    
+    if (!search) return true;
+    const s = search.toLowerCase();
+    return (u.displayName || '').toLowerCase().includes(s) || (u.email || '').toLowerCase().includes(s);
+  });
 
   const canInvite = profile.role === 'master' || profile.role === 'admin';
   const canEditRole = profile.role === 'master';
@@ -3219,9 +3228,11 @@ function UsuariosView({ profile }: { profile: UserProfile }) {
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-end gap-1">
-                      {canInvite && (
+                      {/* Admin não pode editar outros Admins (apenas Master ou a si mesmo) */}
+                      {canInvite && (profile.role === 'master' || user.role !== 'admin' || user.uid === profile.uid || user.id === profile.id) && (
                         <Button variant="ghost" size="sm" onClick={() => openEdit(user)}><Pencil size={14} /></Button>
                       )}
+                      {/* Apenas Master deleta usuários. E Admin deleta viewers? (Não, mantendo restrito por segurança) */}
                       {profile.role === 'master' && (user.uid || user.id) !== (profile.uid || profile.id) && (
                         <Button variant="ghost" size="sm" onClick={() => setDeleteTarget(user)}><Trash2 size={14} /></Button>
                       )}

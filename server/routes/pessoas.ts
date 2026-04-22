@@ -488,12 +488,38 @@ router.post('/', async (req: AuthRequest, res: Response) => {
   }
 });
 
+// Helper para validar propriedade (Multi-tenant check)
+async function canAccessPessoa(req: AuthRequest, pessoaId: string): Promise<boolean> {
+  if (req.user?.role === 'master') return true;
+  
+  const pessoa = await queryOne<{ company_id: string }>(
+    'SELECT company_id FROM pessoas WHERE id = $1', [pessoaId]
+  );
+  if (!pessoa) return false;
+
+  const userCompanies = await query<{ company_id: string }>(
+    `SELECT company_id FROM user_companies WHERE user_id = $1
+     UNION
+     SELECT id FROM companies WHERE parent_id IN (SELECT company_id FROM user_companies WHERE user_id = $1)`,
+    [req.user!.userId]
+  );
+  
+  return userCompanies.some(uc => uc.company_id === pessoa.company_id);
+}
+
 // ============================================================
 // PUT /api/pessoas/:id
 // ============================================================
 router.put('/:id', async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
+
+    // Validação Multi-tenant
+    const hasAccess = await canAccessPessoa(req, id);
+    if (!hasAccess) {
+      res.status(403).json({ error: 'Você não tem permissão para editar este cadastro.' });
+      return;
+    }
     const {
       companyId, tipoAcesso, foto, nomeCompleto, documento, empresaOrigemId, responsavelInterno,
       celularAutorizado, celularImei, notebookAutorizado, notebookMarca, notebookPatrimonio,
@@ -567,6 +593,13 @@ router.put('/:id', async (req: AuthRequest, res: Response) => {
 router.delete('/:id', async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
+
+    // Validação Multi-tenant
+    const hasAccess = await canAccessPessoa(req, id);
+    if (!hasAccess) {
+      res.status(403).json({ error: 'Você não tem permissão para excluir este cadastro.' });
+      return;
+    }
     
     // Busca dados antes de deletar para o log
     const pessoa = await queryOne<{ nome_completo: string, documento: string }>(
@@ -606,6 +639,13 @@ router.post('/:id/approve', async (req: AuthRequest, res: Response) => {
     // Apenas Administradores da Segurança podem aprovar
     if (!req.user?.isSafety && req.user?.role !== 'master') {
       res.status(403).json({ error: 'Apenas a Segurança do Trabalho pode aprovar este cadastro.' });
+      return;
+    }
+
+    // Validação Multi-tenant
+    const hasAccess = await canAccessPessoa(req, id);
+    if (!hasAccess) {
+      res.status(403).json({ error: 'Você não tem permissão para aprovar este cadastro.' });
       return;
     }
 

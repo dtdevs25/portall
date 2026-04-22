@@ -46,7 +46,9 @@ router.get('/', async (req: AuthRequest, res: Response) => {
         `SELECT u.id, u.email, u.display_name, u.role, u.company_id, c.name as company_name, u.is_active, u.is_safety, u.created_at
          FROM users u
          LEFT JOIN companies c ON u.company_id = c.id
-         ORDER BY u.display_name ASC`
+         WHERE (u.role != 'master' OR $1 = 'master')
+         ORDER BY u.display_name ASC`,
+        [req.user?.role]
       );
     } else {
       // Admin vê usuários de TODAS as empresas vinculadas (e suas filiais)
@@ -64,7 +66,7 @@ router.get('/', async (req: AuthRequest, res: Response) => {
         `SELECT DISTINCT u.id, u.email, u.display_name, u.role, u.company_id, c.name as company_name, u.is_active, u.is_safety, u.created_at
          FROM users u
          LEFT JOIN companies c ON u.company_id = c.id
-         WHERE u.company_id IN (
+         WHERE u.role != 'master' AND u.company_id IN (
            SELECT company_id FROM user_companies WHERE user_id = $1
            UNION
            SELECT c2.id FROM companies c2
@@ -252,6 +254,12 @@ async function canUpdateUser(reqUserId: string, reqUserRole: string, reqUserComp
 
   // Admin não afeta pessoas de fora da cia e não afeta master
   if (target.company_id !== reqUserCompany || target.role === 'master') {
+    return false;
+  }
+
+  // NOVO: Admin não pode editar outros Admins (apenas Master pode, ou o próprio user se implementado)
+  // Mas o admin PODE editar viewers da sua própria empresa.
+  if (reqUserRole === 'admin' && target.role === 'admin' && targetUserId !== reqUserId) {
     return false;
   }
 
