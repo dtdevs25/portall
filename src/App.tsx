@@ -10,7 +10,8 @@ import {
   Plus, Trash2, Pencil, Eye, EyeOff, Search, ChevronLeft, ChevronRight,
   Menu, X, AlertTriangle, CheckCircle2, XCircle, Clock, Camera,
   Upload, ArrowRightCircle, ArrowLeftCircle, RefreshCw, BookOpen,
-  Briefcase, UserCog, Bell, Home, Mail, LayoutGrid, List
+  Briefcase, UserCog, Bell, Home, Mail, LayoutGrid, List,
+  UserX, UserPlus
 } from 'lucide-react';
 import { format, parseISO, isValid } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -2963,7 +2964,7 @@ export default function App() {
                 exit={{ opacity: 0, y: -10 }} 
                 transition={{ duration: 0.15 }}
               >
-                {activeTab === 'treinamentos'      && <AtividadesView profile={profile} />}
+                {activeTab === 'treinamentos'      && <TreinamentosView profile={profile} />}
                 {activeTab === 'pessoas'           && <PessoasView profile={profile} />}
                 {activeTab === 'empresas_terceiro' && <EmpresasTerceiroView profile={profile} />}
                 {activeTab === 'companies'         && (profile.role === 'master' || profile.role === 'admin') && <CompaniesView profile={profile} />}
