@@ -942,37 +942,54 @@ function PortariaView({ profile, companies }: { profile: UserProfile, companies:
           <option value="a_vencer" className="text-amber-600">⚠️ A Vencer</option>
           <option value="bloqueado" className="text-red-600">🚫 Bloqueados</option>
         </select>
-
         </div>
       </div>
 
-      {/* Presence Tabs */}
-      <div className="flex border-b border-slate-200">
-        {[
-          { id: 'all',      label: 'Todos',          count: baseFiltered.length },
-          { id: 'on-site',  label: 'Na Unidade',     count: statusCount.onSite },
-          { id: 'off-site', label: 'Fora da Unidade', count: statusCount.offSite },
-        ].map(t => (
-          <button
-            key={t.id}
-            onClick={() => setPresenceFilter(t.id as any)}
-            className={cn(
-              'px-6 py-4 text-sm font-bold transition-all border-b-2 relative',
-              presenceFilter === t.id 
-                ? 'border-blue-600 text-blue-600' 
-                : 'border-transparent text-slate-400 hover:text-slate-600'
-            )}
+      {/* Presence Tabs & View Toggle */}
+      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200">
+        <div className="flex">
+          {[
+            { id: 'all',      label: 'Todos',          count: baseFiltered.length },
+            { id: 'on-site',  label: 'Na Unidade',     count: statusCount.onSite },
+            { id: 'off-site', label: 'Fora da Unidade', count: statusCount.offSite },
+          ].map(t => (
+            <button
+              key={t.id}
+              onClick={() => setPresenceFilter(t.id as any)}
+              className={cn(
+                'px-6 py-4 text-sm font-bold transition-all border-b-2 relative',
+                presenceFilter === t.id 
+                  ? 'border-blue-600 text-blue-600' 
+                  : 'border-transparent text-slate-400 hover:text-slate-600'
+              )}
+            >
+              {t.label}
+              <span className={cn(
+                'ml-2 px-1.5 py-0.5 rounded-md text-[10px] font-black',
+                presenceFilter === t.id ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 text-slate-500'
+              )}>
+                {t.count}
+              </span>
+            </button>
+          ))}
+        </div>
+
+        <div className="flex bg-white p-1 rounded-xl border border-slate-200 shadow-sm mb-2">
+          <button 
+            onClick={() => setViewType('card')}
+            className={cn('p-1.5 rounded-lg transition-all', viewType === 'card' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-600')}
+            title="Visualização em Cards"
           >
-            {t.label}
-            <span className={cn(
-              'ml-2 px-1.5 py-0.5 rounded-md text-[10px] font-black',
-              presenceFilter === t.id ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 text-slate-500'
-            )}>
-              {t.count}
-            </span>
+            <LayoutGrid size={18} />
           </button>
-        ))}
-      </div>
+          <button 
+            onClick={() => setViewType('list')}
+            className={cn('p-1.5 rounded-lg transition-all', viewType === 'list' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-600')}
+            title="Visualização em Lista"
+          >
+            <List size={18} />
+          </button>
+        </div>
       </div>
       {viewType === 'card' ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
