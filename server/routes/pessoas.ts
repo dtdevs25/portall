@@ -130,6 +130,7 @@ function mapFotoUrl(rawPath: string | null): string | null {
 // Master vê todas. Admin vê de todas as suas unidades vinculadas.
 // ============================================================
 router.get('/', async (req: AuthRequest, res: Response) => {
+  try {
     const { includeInactive } = req.query;
     const filterActive = includeInactive !== 'true';
 
