@@ -938,11 +938,7 @@ function PortariaView({ profile, companies }: { profile: UserProfile, companies:
           className="px-4 py-3 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-600 outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
         >
           <option value="">Todos os Status</option>
-          <option value="liberado" className="text-emerald-600">✅ Liberados</option>
-          <option value="a_vencer" className="text-amber-600">⚠️ A Vencer</option>
-          <option value="bloqueado" className="text-red-600">🚫 Bloqueados</option>
         </select>
-        </div>
       </div>
 
       {/* Presence Tabs & View Toggle */}
