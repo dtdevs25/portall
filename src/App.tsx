@@ -746,8 +746,7 @@ function Sidebar({ activeTab, setActiveTab, profile, collapsed, setCollapsed, mo
 }
 
 // ─── Portaria (Viewer) ────────────────────────────────────────────────────────
-
-function PortariaView({ profile }: { profile: UserProfile }) {
+function PortariaView({ profile, companies }: { profile: UserProfile, companies: Company[] }) {
   const [pessoas, setPessoas] = useState<Pessoa[]>([]);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusAcesso | ''>('');
@@ -819,19 +818,22 @@ function PortariaView({ profile }: { profile: UserProfile }) {
   };
 
   const handleRegistrar = (pessoaId: string, status: 'entrada' | 'saida') => {
+    if (!pessoaId) return;
     const pessoa = pessoas.find(p => p.id === pessoaId);
+    if (!pessoa) return;
     
-    if (status === 'entrada' && pessoa?.tipoAcesso === 'prestador') {
+    if (status === 'entrada' && pessoa.tipoAcesso === 'prestador') {
       // Busca a unidade de destino da pessoa para saber se ela exige termo de segurança
-      const companies = (window as any).__COMPANIES__ || [];
-      const personUnit = companies.find((c: any) => c.id === pessoa.companyId);
+      const personUnit = (companies || []).find((c: any) => c.id === pessoa.companyId);
       
       if (personUnit?.requiresSafetyTerm && !pessoa.termoAssinadoEm) {
+        setSelected(null); // Fecha o detalhe imediatamente
         setTermPrompt(pessoa);
         return;
       }
     }
 
+    setSelected(null); // Fecha o detalhe imediatamente para abrir o próximo modal
     if (status === 'entrada') {
       setLockerPrompt({ pessoaId, status });
       setLockerInput('');
@@ -843,9 +845,9 @@ function PortariaView({ profile }: { profile: UserProfile }) {
 
   const confirmOutput = async (pessoaId: string, status: 'saida') => {
     setActionLoading(true);
+    setSelected(null); // Fecha o detalhe imediatamente para evitar conflito de render
     try {
       await api.post('/presencas', { pessoaId, status });
-      setSelected(null);
       setLockerPrompt(null);
       fetchPessoas();
     } catch (err: any) { alert(err.error || 'Erro ao registrar.'); } 
@@ -1310,8 +1312,12 @@ function PortariaView({ profile }: { profile: UserProfile }) {
                 </div>
               </div>
 
-              <div className="bg-white p-4 rounded-3xl shadow-inner border-2 border-slate-100">
-                <QRCodeSVG value={shareUrl} size={200} level="H" includeMargin={true} />
+              <div className="bg-white p-4 rounded-3xl shadow-inner border-2 border-slate-100 min-h-[100px] flex items-center justify-center">
+                {QRCodeSVG && shareUrl ? (
+                  <QRCodeSVG value={shareUrl} size={180} level="H" includeMargin={true} />
+                ) : (
+                  <div className="text-xs text-slate-400 p-4">Erro ao carregar QR Code. Link: {shareUrl}</div>
+                )}
               </div>
 
               <div className="space-y-3 w-full">
@@ -3011,13 +3017,10 @@ export default function App() {
                 exit={{ opacity: 0, y: -10 }} 
                 transition={{ duration: 0.15 }}
               >
-                {activeTab === 'portaria'          && <PortariaView profile={profile} />}
-                {activeTab === 'pessoas'           && <PessoasView profile={profile} />}
-                {activeTab === 'empresas_terceiro' && <EmpresasTerceiroView profile={profile} />}
-                {activeTab === 'treinamentos'      && <TreinamentosView profile={profile} />}
                 {activeTab === 'atividades'        && <AtividadesView profile={profile} />}
                 {activeTab === 'companies'         && (profile.role === 'master' || profile.role === 'admin') && <CompaniesView profile={profile} />}
                 {activeTab === 'usuarios'          && <UsuariosView profile={profile} />}
+                {activeTab === 'portaria'          && <PortariaView profile={profile} companies={companies} />}
                 {activeTab === 'logs'              && profile.role === 'master' && <LogsView />}
                 {activeTab === 'notificacoes'      && <NotificacoesView profile={profile} companies={companies} />}
               </motion.div>
