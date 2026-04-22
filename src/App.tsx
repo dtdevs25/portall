@@ -1570,10 +1570,16 @@ function PessoasView({ profile }: { profile: UserProfile }) {
       <div className="flex flex-wrap gap-3">
         <div className="relative flex-1 min-w-48">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar..."
-            className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-200 text-sm outline-none focus:ring-2 focus:ring-blue-500" />
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar por nome, empresa ou documento..."
+            className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-200 text-sm outline-none focus:ring-2 focus:ring-blue-500 shadow-sm" />
         </div>
-          <option value="bloqueado">Bloqueado</option>
+
+        <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)}
+          className="px-3 py-2 rounded-xl border border-slate-200 text-sm bg-white outline-none shadow-sm">
+          <option value="">Todos os status</option>
+          <option value="liberado">Liberados</option>
+          <option value="a_vencer">A Vencer</option>
+          <option value="bloqueado">Bloqueados</option>
         </select>
 
         <div className="flex items-center gap-2 px-3 py-2 bg-white rounded-xl border border-slate-200 shadow-sm">
