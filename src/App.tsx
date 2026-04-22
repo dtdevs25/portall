@@ -11,7 +11,7 @@ import {
   Menu, X, AlertTriangle, CheckCircle2, XCircle, Clock, Camera,
   Upload, ArrowRightCircle, ArrowLeftCircle, RefreshCw, BookOpen,
   Briefcase, UserCog, Bell, Home, Mail, LayoutGrid, List,
-  UserX, UserPlus
+  UserX, UserPlus, Power
 } from 'lucide-react';
 import { format, parseISO, isValid } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -1644,11 +1644,11 @@ function PessoasView({ profile }: { profile: UserProfile }) {
                         variant="ghost" 
                         size="sm" 
                         onClick={() => handleToggleStatus(p)} 
-                        className={cn(p.isActive ? 'text-slate-400 hover:text-amber-600' : 'text-emerald-500 hover:text-emerald-600')}
-                        title={p.isActive ? 'Desativar' : 'Reativar'}
+                        className={cn(p.isActive ? 'text-slate-400 hover:text-red-600' : 'text-emerald-500 hover:text-emerald-600')}
+                        title={p.isActive ? 'Desativar (Bloquear)' : 'Reativar (Liberar)'}
                         disabled={saving}
                       >
-                        {p.isActive ? <UserX size={14} /> : <UserPlus size={14} />}
+                        <Power size={14} />
                       </Button>
                       {profile.role === 'master' && (
                         <Button variant="ghost" size="sm" onClick={() => setDeleteId(p.id)} title="Excluir Permanentemente"><Trash2 size={14} className="text-slate-300 hover:text-red-600" /></Button>

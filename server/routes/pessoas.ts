@@ -136,7 +136,7 @@ router.get('/', async (req: AuthRequest, res: Response) => {
 
     let pessoasData;
     const baseFields = `
-      p.*, e.name as empresa_origem_nome, t.nome as atividade_nome,
+      p.*, p.is_active as "isActive", e.name as empresa_origem_nome, t.nome as atividade_nome,
       pl.status as last_presence_status, pl.timestamp as last_presence_timestamp,
       pl.armario as current_armario
     `;
