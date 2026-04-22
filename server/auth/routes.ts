@@ -51,8 +51,9 @@ router.post('/login', async (req: Request, res: Response) => {
       role: 'master' | 'admin' | 'viewer';
       company_id: string;
       is_active: boolean;
+      is_safety: boolean;
     }>(
-      `SELECT id, email, display_name, password_hash, role, company_id, is_active
+      `SELECT id, email, display_name, password_hash, role, company_id, is_active, is_safety
        FROM users 
        WHERE LOWER(email) = LOWER($1)`,
       [email.trim()]
@@ -82,6 +83,7 @@ router.post('/login', async (req: Request, res: Response) => {
       email: user.email,
       role: user.role,
       companyId: user.company_id,
+      isSafety: user.is_safety
     });
 
     res.json({
@@ -92,6 +94,7 @@ router.post('/login', async (req: Request, res: Response) => {
         displayName: user.display_name,
         role: user.role,
         companyId: user.company_id,
+        isSafety: user.is_safety,
         createdAt: new Date().toISOString(),
       },
     });
@@ -134,9 +137,10 @@ router.get('/me', requireAuth, async (req: AuthRequest, res: Response) => {
       role: 'master' | 'admin' | 'viewer';
       company_id: string;
       company_name: string;
+      is_safety: boolean;
       created_at: string;
     }>(
-      `SELECT u.id, u.email, u.display_name, u.role, u.company_id, c.name as company_name, u.created_at
+      `SELECT u.id, u.email, u.display_name, u.role, u.company_id, c.name as company_name, u.is_safety, u.created_at
        FROM users u
        LEFT JOIN companies c ON u.company_id = c.id
        WHERE u.id = $1 AND u.is_active = TRUE`,
@@ -155,6 +159,7 @@ router.get('/me', requireAuth, async (req: AuthRequest, res: Response) => {
       role: user.role,
       companyId: user.company_id,
       companyName: user.company_name,
+      isSafety: user.is_safety,
       createdAt: user.created_at,
     });
   } catch (err) {

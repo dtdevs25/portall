@@ -8,9 +8,12 @@ const router = Router();
 router.use(requireAuth);
 
 // Helper para calcular o status geral e verificar vencimentos
-function calculateStatus(liberadoAte: Date | null, asoVencimento: Date | null, treinamentos: { vencimento: Date }[]): 'liberado' | 'a_vencer' | 'bloqueado' {
+function calculateStatus(liberadoAte: Date | null, asoVencimento: Date | null, treinamentos: { vencimento: Date }[], isApproved: boolean = true): 'liberado' | 'a_vencer' | 'bloqueado' {
   const now = new Date();
   
+  // Se não estiver aprovado pela segurança (para prestadores), está bloqueado independente do resto
+  if (!isApproved) return 'bloqueado';
+
   if (liberadoAte && liberadoAte < now) return 'bloqueado';
   if (asoVencimento && asoVencimento < now) return 'bloqueado';
   
@@ -162,7 +165,8 @@ router.get('/', async (req: AuthRequest, res: Response) => {
       const tpps = treinamentosPorPessoa[p.id] || [];
       const vencimentos = tpps.map(t => ({ vencimento: new Date(t.dataVencimento) }));
 
-      const statusAcesso = calculateStatus(liberadoAteDate, asoVencimento, vencimentos);
+      const isApproved = !!p.is_approved;
+      const statusAcesso = calculateStatus(liberadoAteDate, asoVencimento, vencimentos, isApproved);
 
       return {
         id: p.id,
@@ -183,6 +187,7 @@ router.get('/', async (req: AuthRequest, res: Response) => {
         asoDataRealizacao: p.aso_data_realizacao,
         epiObrigatorio: p.epi_obrigatorio,
         epiDescricao: p.epi_descricao,
+        isApproved,
         statusAcesso,
         treinamentos: tpps,
         lastPresenceStatus: p.last_presence_status,
@@ -241,14 +246,20 @@ router.post('/', async (req: AuthRequest, res: Response) => {
       }
     }
 
+    // Lógica de Aprovação da Segurança
+    let isApproved = true;
+    if (tipoAcesso === 'prestador' && !req.user!.isSafety) {
+      isApproved = false;
+    }
+
     // Insere a pessoa
     const pessoa = await queryOne<{ id: string }>(
       `INSERT INTO pessoas (
         company_id, tipo_acesso, foto, nome_completo, documento, empresa_origem_id, responsavel_interno,
         celular_autorizado, celular_imei, notebook_autorizado, notebook_marca, notebook_patrimonio, 
         liberado_ate, descricao_atividade, atividade_id, aso_data_realizacao, epi_obrigatorio, 
-        epi_descricao, created_by
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
+        epi_descricao, created_by, is_approved
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
       RETURNING id`,
       [
         companyId, tipoAcesso, foto, nomeCompleto, documento, empresaOrigemId || null, responsavelInterno,
@@ -258,9 +269,72 @@ router.post('/', async (req: AuthRequest, res: Response) => {
         asoDataRealizacao || null,
         tipoAcesso === 'prestador' ? epiObrigatorio : false,
         tipoAcesso === 'prestador' ? epiDescricao : null,
-        req.user!.userId
+        req.user!.userId,
+        isApproved
       ]
     );
+
+    // Salva LOG de sistema
+    await query(
+      `INSERT INTO system_logs (user_id, action, entity_type, entity_id, details)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [
+        req.user!.userId,
+        'PESSOA_CRIADA',
+        'pessoa',
+        pessoa?.id,
+        JSON.stringify({ nome_completo: nomeCompleto, documento, tipo_acesso: tipoAcesso, is_approved: isApproved })
+      ]
+    );
+
+    // NOTIFICAÇÃO POR E-MAIL PARA A SEGURANÇA
+    if (pessoa) {
+      const { sendMail } = await import('../mailer.js');
+      const emails = await query<{ email: string }>('SELECT email FROM notification_emails WHERE company_id = $1', [companyId]);
+      
+      if (emails.length > 0) {
+        const recipients = emails.map(e => e.email);
+        const appUrl = process.env.APP_URL || 'https://portall.ctdibrasil.com.br';
+        const isPendingApprove = tipoAcesso === 'prestador' && !isApproved;
+        
+        const subject = isPendingApprove 
+          ? `⚠️ [APROVAÇÃO] Novo Prestador: ${nomeCompleto}` 
+          : `✅ [AVISO] Novo ${tipoAcesso === 'visitante' ? 'Visitante' : 'Prestador'}: ${nomeCompleto}`;
+
+        const html = `
+          <div style="font-family: sans-serif; background: #f9fafb; padding: 40px 20px;">
+            <div style="max-width: 600px; margin: 0 auto; background: white; border-radius: 12px; padding: 32px; border: 1px solid #e5e7eb;">
+              <h2 style="color: #111827; margin-top: 0;">Novo Cadastro Portal PortALL</h2>
+              <p style="color: #4b5563;">Olá, equipe de segurança.</p>
+              <p style="color: #4b5563;">Um novo <strong>${tipoAcesso}</strong> foi cadastrado no sistema por <strong>${req.user!.email}</strong>.</p>
+              
+              <div style="background: #f3f4f6; border-radius: 8px; padding: 20px; margin: 24px 0;">
+                <p style="margin: 0; font-size: 14px; color: #6b7280;">Nome Completo:</p>
+                <p style="margin: 4px 0 16px; font-weight: bold; color: #111827; font-size: 18px;">${nomeCompleto}</p>
+                
+                <p style="margin: 0; font-size: 14px; color: #6b7280;">Documento:</p>
+                <p style="margin: 4px 0 0; font-weight: bold; color: #111827;">${documento}</p>
+
+                ${isPendingApprove ? `
+                  <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #d1d5db;">
+                    <p style="color: #991b1b; font-weight: bold; margin: 0;">⚠️ AGUARDANDO APROVAÇÃO</p>
+                    <p style="color: #7f1d1d; font-size: 13px; margin-top: 4px;">Este prestador está BLOQUEADO na portaria até que um administrador da segurança realize a aprovação no sistema.</p>
+                  </div>
+                ` : ''}
+              </div>
+
+              <div style="text-align: center; margin-top: 32px;">
+                <a href="${appUrl}/portaria" style="background: #2563eb; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: bold;">
+                  Ver no PortALL
+                </a>
+              </div>
+            </div>
+          </div>
+        `;
+
+        await sendMail({ to: recipients, subject, html });
+      }
+    }
 
     // Salva os treinamentos e calcula datas de vencimento automaticamente baseada na validade!
     if (pessoa && tipoAcesso === 'prestador' && Array.isArray(treinamentos)) {
@@ -466,6 +540,44 @@ router.delete('/:id', async (req: AuthRequest, res: Response) => {
   } catch (err: any) {
     console.error('DELETE /pessoas error:', err);
     res.status(500).json({ error: 'Erro ao excluir pessoa.' });
+  }
+});
+
+router.post('/:id/approve', async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    // Apenas Administradores da Segurança podem aprovar
+    if (!req.user?.isSafety && req.user?.role !== 'master') {
+      res.status(403).json({ error: 'Apenas a Segurança do Trabalho pode aprovar este cadastro.' });
+      return;
+    }
+
+    const updated = await queryOne<{ id: string }>(
+      `UPDATE pessoas 
+       SET is_approved = TRUE, 
+           approved_by = $1, 
+           approved_at = NOW() 
+       WHERE id = $2 
+       RETURNING id`,
+      [req.user.userId, id]
+    );
+
+    if (!updated) {
+      res.status(404).json({ error: 'Cadastro não encontrado.' });
+      return;
+    }
+
+    await query(
+      `INSERT INTO system_logs (user_id, action, entity_type, entity_id, details)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [req.user.userId, 'PESSOA_APROVADA', 'pessoa', id, JSON.stringify({ approved_by: req.user.email })]
+    );
+
+    res.json({ success: true, message: 'Cadastro aprovado com sucesso.' });
+  } catch (err: any) {
+    console.error('Approve person error:', err);
+    res.status(500).json({ error: 'Erro ao aprovar cadastro.' });
   }
 });
 

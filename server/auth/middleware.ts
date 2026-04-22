@@ -9,6 +9,7 @@ export interface AuthRequest extends Request {
     email: string;
     role: 'master' | 'admin' | 'viewer';
     companyId?: string;
+    isSafety: boolean;
   };
 }
 
@@ -22,6 +23,7 @@ export function generateToken(payload: {
   email: string;
   role: string;
   companyId?: string;
+  isSafety: boolean;
 }): string {
   return jwt.sign(payload, JWT_SECRET, { expiresIn: '8h' });
 }
@@ -62,6 +64,7 @@ export async function requireAuth(
       email: string;
       role: 'master' | 'admin' | 'viewer';
       companyId?: string;
+      isSafety: boolean;
       exp: number;
     };
 
@@ -70,6 +73,7 @@ export async function requireAuth(
       email: decoded.email,
       role: decoded.role,
       companyId: decoded.companyId,
+      isSafety: !!decoded.isSafety,
     };
 
     next();

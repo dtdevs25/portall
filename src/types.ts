@@ -21,6 +21,7 @@ export interface UserProfile {
   managedCompanyIds?: string[];
   manageAllBranches?: boolean;
   companyName?: string;
+  isSafety: boolean;
   isActive: boolean;
   createdAt: string;
 }
@@ -97,6 +98,8 @@ export interface Pessoa {
   lastPresenceStatus?: 'entrada' | 'saida' | null;
   lastPresenceTimestamp?: string | null;
   armario?: string | null;
+  
+  isApproved?: boolean;
 
   createdBy?: string;
   createdAt: string;

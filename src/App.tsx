@@ -62,6 +62,11 @@ function getBlockingReasons(p: Pessoa) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
+  // Se não estiver aprovado pela segurança (para prestadores)
+  if (p.tipoAcesso === 'prestador' && p.isApproved === false) {
+    reasons.push('Aguardando aprovação da Segurança do Trabalho (workflow obrigatório)');
+  }
+
   const parseSafe = (dStr: string | null | undefined) => {
     if (!dStr) return null;
     const clean = dStr.split(' ')[0].split('T')[0];
@@ -719,6 +724,20 @@ function PortariaView({ profile }: { profile: UserProfile }) {
     finally { setActionLoading(false); }
   };
 
+  const handleApprove = async (id: string) => {
+    if (!window.confirm('Confirmar aprovação deste cadastro pela Segurança do Trabalho?')) return;
+    setActionLoading(true);
+    try {
+      await api.post(`/pessoas/${id}/approve`, {});
+      fetchPessoas();
+      setSelected(prev => prev ? { ...prev, isApproved: true } : null);
+    } catch (err: any) {
+      alert(err.error || 'Erro ao aprovar.');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   const statusCount = {
     liberado:  baseFiltered.filter(p => p.statusAcesso === 'liberado').length,
     a_vencer:  baseFiltered.filter(p => p.statusAcesso === 'a_vencer').length,
@@ -1036,19 +1055,29 @@ function PortariaView({ profile }: { profile: UserProfile }) {
               )}
 
               {/* Ações */}
-              <div className="flex gap-3 pt-2">
-                {selected.lastPresenceStatus === 'entrada' ? (
-                  <Button variant="danger" className="flex-1 h-12 text-base shadow-lg shadow-red-600/20" disabled={actionLoading}
-                    onClick={() => handleRegistrar(selected!.id, 'saida')}>
-                    <ArrowLeftCircle size={20} /> Registrar Saída
-                  </Button>
-                ) : (
-                  <Button variant="success" className="flex-1 h-12 text-base shadow-lg shadow-emerald-600/20" 
-                    disabled={actionLoading || selected.statusAcesso === 'bloqueado'}
-                    onClick={() => handleRegistrar(selected!.id, 'entrada')}>
-                    <ArrowRightCircle size={20} /> Registrar Entrada
+              <div className="flex flex-col gap-3 pt-2">
+                {selected.tipoAcesso === 'prestador' && !selected.isApproved && (profile.isSafety || profile.role === 'master') && (
+                  <Button variant="success" className="w-full h-12 text-base shadow-lg shadow-emerald-600/20" 
+                    disabled={actionLoading}
+                    onClick={() => handleApprove(selected.id)}>
+                    <ShieldCheck size={20} /> Aprovar pela Segurança
                   </Button>
                 )}
+
+                <div className="flex gap-3">
+                  {selected.lastPresenceStatus === 'entrada' ? (
+                    <Button variant="danger" className="flex-1 h-12 text-base shadow-lg shadow-red-600/20" disabled={actionLoading}
+                      onClick={() => handleRegistrar(selected!.id, 'saida')}>
+                      <ArrowLeftCircle size={20} /> Registrar Saída
+                    </Button>
+                  ) : (
+                    <Button variant="success" className="flex-1 h-12 text-base shadow-lg shadow-emerald-600/20" 
+                      disabled={actionLoading || selected.statusAcesso === 'bloqueado'}
+                      onClick={() => handleRegistrar(selected!.id, 'entrada')}>
+                      <ArrowRightCircle size={20} /> Registrar Entrada
+                    </Button>
+                  )}
+                </div>
               </div>
               {selected.statusAcesso === 'bloqueado' && selected.lastPresenceStatus !== 'entrada' && (
                 <p className="text-xs text-red-600 text-center font-semibold bg-red-50 py-2 rounded-lg border border-red-100">
@@ -2764,7 +2793,8 @@ function UsuariosView({ profile }: { profile: UserProfile }) {
     role: 'viewer', 
     companyId: '', 
     managedCompanyIds: [] as string[], 
-    manageAllBranches: false 
+    manageAllBranches: false,
+    isSafety: false
   });
 
   const [deleteTarget, setDeleteTarget] = useState<UserProfile | null>(null);
@@ -2790,7 +2820,8 @@ function UsuariosView({ profile }: { profile: UserProfile }) {
       role: 'viewer', 
       companyId: profile.role === 'admin' ? (profile.companyId || '') : '', 
       managedCompanyIds: [], 
-      manageAllBranches: false 
+      manageAllBranches: false,
+      isSafety: false
     });
     setShowForm(true);
   };
@@ -2803,7 +2834,8 @@ function UsuariosView({ profile }: { profile: UserProfile }) {
       role: user.role || 'viewer', 
       companyId: user.companyId || '',
       managedCompanyIds: user.managedCompanyIds || [],
-      manageAllBranches: user.manageAllBranches || false
+      manageAllBranches: user.manageAllBranches || false,
+      isSafety: user.isSafety || false
     });
     setShowForm(true);
   };
@@ -2913,9 +2945,16 @@ function UsuariosView({ profile }: { profile: UserProfile }) {
                     </div>
                   </td>
                   <td className="px-4 py-3">
-                    <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${roleColor(user.role || 'viewer')}`}>
-                      {roleLabel(user.role || 'viewer')}
-                    </span>
+                    <div className="flex flex-col gap-1">
+                      <span className={`text-xs font-bold px-2.5 py-1 rounded-full w-fit ${roleColor(user.role || 'viewer')}`}>
+                        {roleLabel(user.role || 'viewer')}
+                      </span>
+                      {user.isSafety && (
+                        <span className="text-[9px] font-black bg-blue-100 text-blue-700 px-2 py-0.5 rounded-md uppercase tracking-wider w-fit">
+                          Segurança do Trabalho
+                        </span>
+                      )}
+                    </div>
                   </td>
                   <td className="px-4 py-3 text-sm text-slate-600">
                     {getCompanyName(user.companyId)}
@@ -2971,11 +3010,21 @@ function UsuariosView({ profile }: { profile: UserProfile }) {
               <Input label="Nome Completo" value={form.displayName} onChange={v => setForm(f => ({ ...f, displayName: v }))} required placeholder="Nome do usuário" />
               <Input label="E-mail" type="email" value={form.email} onChange={v => setForm(f => ({ ...f, email: v }))} required placeholder="usuario@empresa.com" />
               {canEditRole && (
-                <Select label="Perfil de Acesso" value={form.role} onChange={v => setForm(f => ({ ...f, role: v }))} required>
-                  <option value="viewer">Visualizador (Portaria)</option>
-                  <option value="admin">Administrador</option>
-                  {profile.role === 'master' && <option value="master">Master</option>}
-                </Select>
+                <div className="space-y-4">
+                  <Select label="Perfil de Acesso" value={form.role} onChange={v => setForm(f => ({ ...f, role: v }))} required>
+                    <option value="viewer">Visualizador (Portaria)</option>
+                    <option value="admin">Administrador</option>
+                    {profile.role === 'master' && <option value="master">Master</option>}
+                  </Select>
+                  
+                  {(form.role === 'admin' || form.role === 'master') && (
+                    <Toggle 
+                      label="Este administrador pertence à Segurança do Trabalho?" 
+                      checked={form.isSafety} 
+                      onChange={v => setForm(f => ({ ...f, isSafety: v }))} 
+                    />
+                  )}
+                </div>
               )}
               {(profile.role === 'master' && form.role !== 'master') && (
                 <div className="space-y-4">
