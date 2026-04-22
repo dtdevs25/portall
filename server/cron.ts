@@ -207,8 +207,9 @@ function generateHtmlReport(companyName: string, asoAlerts: any[], trainingAlert
   }).join('');
 
   const introText = isDirectToVendor 
-    ? `Identificamos colaboradores da sua empresa com documentos vencidos ou próximos ao vencimento (prazo de 15 dias). Por favor, regularize a documentação para evitar o bloqueio de acesso dos seus colaboradores na portaria.`
-    : `Segue a listagem detalhada de prestadores de serviço com pendências de documentação (vencidos ou próximos ao vencimento). A falta de regularização impedirá o acesso às dependências da unidade.`;
+    ? `Como parte dos processos de segurança e controle de acessos da <strong>CTDI</strong>, identificamos que alguns colaboradores da sua empresa possuem documentos próximos ao prazo de expiração (janela de 15 dias). 
+       A regularização tempestiva é essencial para garantir a continuidade das atividades e evitar bloqueios automáticos no sistema de controle de acesso físico de nossas dependências. Por favor, providencie a atualização dos itens listados abaixo através do portal.`
+    : `Prezados, segue a listagem detalhada de colaboradores externos com pendências de documentação identificadas pelo sistema de controle da <strong>CTDI</strong>. Solicitamos a regularização imediata da documentação citada abaixo para assegurar a conformidade operacional e evitar o bloqueio preventivo de acesso à unidade.`;
 
   return `
     <div style="font-family: Arial, sans-serif; background-color: #f3f4f6; padding: 30px 10px;">
@@ -242,11 +243,19 @@ function generateHtmlReport(companyName: string, asoAlerts: any[], trainingAlert
             </tbody>
           </table>
 
+          ${!isDirectToVendor ? `
           <div style="text-align: center; margin-bottom: 25px;">
             <a href="${appUrl}/terceiros" style="display: inline-block; background-color: #001A33; color: #ffffff; padding: 12px 25px; border-radius: 4px; text-decoration: none; font-weight: bold; font-size: 14px; text-transform: uppercase;">
               Acessar Portal de Gestão
             </a>
           </div>
+          ` : `
+          <div style="background-color: #f1f5f9; padding: 20px; border-radius: 8px; text-align: center; margin-bottom: 25px; border: 1px solid #e2e8f0;">
+            <p style="margin: 0; color: #475569; font-size: 14px; line-height: 1.6;">
+              <strong>Atenção:</strong> Por favor, encaminhe os comprovantes de atualização (ASO e certificados de treinamento) digitalizados para o time de <strong>Segurança do Trabalho da CTDI</strong> para que possamos processar a atualização em nosso sistema.
+            </p>
+          </div>
+          `}
 
           <div style="background-color: #fffbeb; border: 1px solid #fde68a; padding: 15px; border-radius: 4px;">
             <p style="margin: 0; font-size: 12px; color: #92400e; font-weight: bold;">
