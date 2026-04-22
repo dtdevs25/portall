@@ -1022,6 +1022,19 @@ function PortariaView({ profile }: { profile: UserProfile }) {
                 </div>
               )}
 
+              {/* Armário em uso */}
+              {selected.lastPresenceStatus === 'entrada' && selected.armario && (
+                <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-center gap-3">
+                  <div className="p-2 bg-amber-100 text-amber-700 rounded-lg">
+                    <Key size={18} />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-black text-amber-500 uppercase tracking-tighter">Armário em Uso</p>
+                    <p className="text-sm font-bold text-amber-900">{selected.armario}</p>
+                  </div>
+                </div>
+              )}
+
               {/* Ações */}
               <div className="flex gap-3 pt-2">
                 {selected.lastPresenceStatus === 'entrada' ? (
@@ -1049,24 +1062,73 @@ function PortariaView({ profile }: { profile: UserProfile }) {
 
       {/* Locker Prompt Modal */}
       <AnimatePresence>
-        {lockerPrompt && lockerPrompt.status === 'entrada' && (
-          <Modal title="Identificação de Armário (Opcional)" onClose={() => setLockerPrompt(null)} size="sm">
+        {lockerPrompt && (
+          <Modal 
+            title={lockerPrompt.status === 'entrada' ? "Uso de Armário" : "Confirmar Saída"} 
+            onClose={() => setLockerPrompt(null)} 
+            size="sm"
+          >
             <div className="space-y-5">
-              <p className="text-sm text-slate-600 font-medium">O visitante/prestador utilizará algum armário para armazenar seus pertences? Se sim, informe o número ou identificação abaixo.</p>
-              
-              <Input 
-                label="Identificação do Armário / Vole"
-                placeholder="Exemplo: Armário 15"
-                value={lockerInput}
-                onChange={setLockerInput}
-              />
-              
-              <div className="flex gap-3 pt-3">
-                <Button variant="ghost" onClick={() => setLockerPrompt(null)} className="flex-1">Cancelar</Button>
-                <Button onClick={confirmRegistrar} disabled={actionLoading} className="flex-1 shadow-md shadow-blue-500/20">
-                  <CheckCircle2 size={18} /> Confirmar Entrada
-                </Button>
-              </div>
+              {lockerPrompt.status === 'entrada' ? (
+                <>
+                  <div className="flex items-center gap-3 p-3 bg-blue-50 rounded-xl border border-blue-100">
+                    <Key className="text-blue-600" size={24} />
+                    <p className="text-sm text-blue-900 font-medium leading-tight">
+                      O visitante/prestador utilizará algum armário para guardar pertences?
+                    </p>
+                  </div>
+                  
+                  <div className="space-y-4">
+                    <Input 
+                      label="Informe o número (Opcional)"
+                      placeholder="Ex: Armário 15"
+                      value={lockerInput}
+                      onChange={setLockerInput}
+                      autoFocus
+                    />
+                    
+                    <div className="grid grid-cols-2 gap-3">
+                      <Button variant="ghost" onClick={confirmRegistrar} disabled={actionLoading} className="h-12 border-slate-200">
+                        Não Precisa
+                      </Button>
+                      <Button onClick={confirmRegistrar} disabled={actionLoading} className="h-12 shadow-md shadow-blue-500/20">
+                        {lockerInput.trim() ? 'Confirmar' : 'Entrar'}
+                      </Button>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="space-y-4">
+                    {(() => {
+                      const p = pessoas.find(x => x.id === lockerPrompt.pessoaId);
+                      return p?.armario ? (
+                        <div className="p-4 bg-amber-50 border-2 border-amber-200 rounded-2xl flex flex-col items-center text-center gap-3">
+                          <div className="w-12 h-12 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center shadow-inner">
+                            <Key size={24} />
+                          </div>
+                          <div>
+                            <p className="text-sm font-bold text-amber-900 uppercase">Devolução de Armário</p>
+                            <p className="text-lg font-black text-amber-600">{p.armario}</p>
+                            <p className="text-xs text-amber-700 mt-2 font-medium">Certifique-se de que a pessoa desocupou o armário e devolveu a chave antes de confirmar a saída.</p>
+                          </div>
+                        </div>
+                      ) : (
+                        <p className="text-center text-slate-600 font-medium py-2">Deseja confirmar a saída agora?</p>
+                      );
+                    })()}
+
+                    <div className="grid grid-cols-2 gap-3 pt-2">
+                      <Button variant="ghost" onClick={() => setLockerPrompt(null)} className="h-12 border-slate-200">
+                        Cancelar
+                      </Button>
+                      <Button variant="danger" onClick={() => confirmOutput(lockerPrompt.pessoaId, 'saida')} disabled={actionLoading} className="h-12 shadow-md shadow-red-500/20">
+                        Confirmar Saída
+                      </Button>
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
           </Modal>
         )}

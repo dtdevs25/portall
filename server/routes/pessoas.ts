@@ -75,14 +75,15 @@ router.get('/', async (req: AuthRequest, res: Response) => {
     let pessoasData;
     const baseFields = `
       p.*, e.name as empresa_origem_nome, t.nome as atividade_nome,
-      pl.status as last_presence_status, pl.timestamp as last_presence_timestamp
+      pl.status as last_presence_status, pl.timestamp as last_presence_timestamp,
+      pl.armario as current_armario
     `;
     const fromClause = `
       FROM pessoas p
       LEFT JOIN empresas_terceiro e ON p.empresa_origem_id = e.id
       LEFT JOIN tipos_atividade t ON p.atividade_id = t.id
       LEFT JOIN LATERAL (
-        SELECT status, timestamp 
+        SELECT status, timestamp, armario
         FROM presenca_logs 
         WHERE pessoa_id = p.id 
         ORDER BY timestamp DESC 
@@ -185,7 +186,8 @@ router.get('/', async (req: AuthRequest, res: Response) => {
         statusAcesso,
         treinamentos: tpps,
         lastPresenceStatus: p.last_presence_status,
-        lastPresenceTimestamp: p.last_presence_timestamp
+        lastPresenceTimestamp: p.last_presence_timestamp,
+        armario: p.last_presence_status === 'entrada' ? p.current_armario : null
       };
     });
     

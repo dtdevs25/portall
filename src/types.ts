@@ -96,6 +96,7 @@ export interface Pessoa {
 
   lastPresenceStatus?: 'entrada' | 'saida' | null;
   lastPresenceTimestamp?: string | null;
+  armario?: string | null;
 
   createdBy?: string;
   createdAt: string;
