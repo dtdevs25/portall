@@ -2583,15 +2583,20 @@ function CompaniesView({ profile }: { profile: UserProfile }) {
                               CNPJ: {maskCNPJ(branch.cnpj)}
                             </p>
                           )}
+                          {branch.requiresSafetyTerm && (
+                            <div className="flex items-center gap-1.5 mt-1 text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md w-fit ring-1 ring-blue-100">
+                              <ShieldCheck size={10} /> TERMO ATIVO
+                            </div>
+                          )}
                         </div>
                       </div>
                       <div className="flex items-center justify-end gap-1 group">
                         <button
                           onClick={() => { 
-                            setBranchForm({ 
+                            setCompanyForm({ 
                               name: branch.name, 
                               cnpj: branch.cnpj || '',
-                              requiresSafetyTerm: branch.requiresSafetyTerm || false
+                              requiresSafetyTerm: !!branch.requiresSafetyTerm
                             }); 
                             setEditTarget(branch); 
                           }}
