@@ -2600,14 +2600,14 @@ function CompaniesView({ profile }: { profile: UserProfile }) {
                             }); 
                             setEditTarget(branch); 
                           }}
-                          className="p-2 rounded-xl text-slate-300 hover:text-blue-600 hover:bg-blue-50 transition-all opacity-0 group-hover:opacity-100"
+                          className="p-2 rounded-xl text-slate-400 hover:text-blue-600 hover:bg-white shadow-sm border border-slate-100 transition-all"
                           title="Editar Unidade"
                         >
-                          <UserCog size={14} />
+                          <Pencil size={14} />
                         </button>
                         <button
                           onClick={() => setDeleteTarget(branch)}
-                          className="p-2 rounded-xl text-slate-300 hover:text-red-500 hover:bg-red-50 transition-all opacity-0 group-hover:opacity-100"
+                          className="p-2 rounded-xl text-slate-400 hover:text-red-500 hover:bg-white shadow-sm border border-slate-100 transition-all"
                           title="Excluir Unidade"
                         >
                           <Trash2 size={14} />
