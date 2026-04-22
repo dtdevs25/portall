@@ -416,9 +416,9 @@ function Toggle({ label, checked, onChange }: { label: string; checked: boolean;
 }
 
 function Modal({ title, onClose, children, size = 'md' }: {
-  title: string; onClose: () => void; children: React.ReactNode; size?: 'md' | 'lg' | 'xl';
+  title: string; onClose: () => void; children: React.ReactNode; size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl';
 }) {
-  const widths = { md: 'max-w-md', lg: 'max-w-2xl', xl: 'max-w-4xl' };
+  const widths = { xs: 'max-w-xs', sm: 'max-w-sm', md: 'max-w-md', lg: 'max-w-2xl', xl: 'max-w-4xl' };
   
   return createPortal(
     <div 
@@ -1197,7 +1197,7 @@ function PortariaView({ profile, companies }: { profile: UserProfile, companies:
         <Modal 
           title={lockerPrompt.status === 'entrada' ? "Uso de Armário" : "Confirmar Saída"} 
           onClose={() => setLockerPrompt(null)} 
-          size="sm"
+          size="xs"
         >
           <div className="space-y-4">
             <p className="text-sm text-slate-600">{lockerPrompt.status === 'entrada' ? 'Deseja informar um guarda-volumes?' : 'Deseja confirmar a saída?'}</p>
