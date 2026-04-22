@@ -949,15 +949,8 @@ function PortariaView({ profile, companies }: { profile: UserProfile, companies:
           </button>
         </div>
       </div>
-      <AnimatePresence mode="wait">
-        {viewType === 'card' ? (
-          <motion.div 
-            key="grid"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
-          >
+      {viewType === 'card' ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {filtered.map(p => (
               <button key={p.id} onClick={() => setSelected(p)}
                 className={cn(
@@ -986,65 +979,57 @@ function PortariaView({ profile, companies }: { profile: UserProfile, companies:
                 </div>
               </button>
             ))}
-          </motion.div>
+          </div>
         ) : (
-          <motion.div 
-            key="list"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-          >
-            <Card className="overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="bg-slate-50/80 border-b border-slate-100">
-                      <th className="text-left px-4 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-widest">Pessoa</th>
-                      <th className="text-left px-4 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-widest">Empresa Origem</th>
-                      <th className="text-left px-4 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-widest">Status / Operação</th>
-                      <th className="text-left px-4 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-widest">Tipo</th>
+          <Card className="overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="bg-slate-50/80 border-b border-slate-100">
+                    <th className="text-left px-4 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-widest">Pessoa</th>
+                    <th className="text-left px-4 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-widest">Empresa Origem</th>
+                    <th className="text-left px-4 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-widest">Status / Operação</th>
+                    <th className="text-left px-4 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-widest">Tipo</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-50">
+                  {filtered.map(p => (
+                    <tr 
+                      key={p.id} 
+                      onClick={() => setSelected(p)}
+                      className="hover:bg-slate-50/80 cursor-pointer transition-colors group"
+                    >
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-3">
+                          {p.foto ? (
+                            <img src={p.foto} alt="" className="w-8 h-8 rounded-lg object-cover" />
+                          ) : (
+                            <div className={cn('w-8 h-8 rounded-lg flex items-center justify-center text-[10px] font-bold text-white',
+                              p.statusAcesso === 'liberado' ? 'bg-emerald-500' : p.statusAcesso === 'a_vencer' ? 'bg-amber-500' : 'bg-red-500')}>
+                              {p.nomeCompleto[0]}
+                            </div>
+                          )}
+                          <p className="text-sm font-semibold text-slate-700 group-hover:text-blue-600 transition-colors">{p.nomeCompleto}</p>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-sm text-slate-600 italic">
+                        {p.empresaOrigemNome || '—'}
+                      </td>
+                      <td className="px-4 py-3">
+                        {p.lastPresenceStatus === 'entrada' ? <OnSitePulse /> : <StatusBadge status={p.statusAcesso} />}
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className="text-[10px] font-black uppercase text-slate-400 border border-slate-200 px-2 py-0.5 rounded">
+                          {p.tipoAcesso}
+                        </span>
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-50">
-                    {filtered.map(p => (
-                      <tr 
-                        key={p.id} 
-                        onClick={() => setSelected(p)}
-                        className="hover:bg-slate-50/80 cursor-pointer transition-colors group"
-                      >
-                        <td className="px-4 py-3">
-                          <div className="flex items-center gap-3">
-                            {p.foto ? (
-                              <img src={p.foto} alt="" className="w-8 h-8 rounded-lg object-cover" />
-                            ) : (
-                              <div className={cn('w-8 h-8 rounded-lg flex items-center justify-center text-[10px] font-bold text-white',
-                                p.statusAcesso === 'liberado' ? 'bg-emerald-500' : p.statusAcesso === 'a_vencer' ? 'bg-amber-500' : 'bg-red-500')}>
-                                {p.nomeCompleto[0]}
-                              </div>
-                            )}
-                            <p className="text-sm font-semibold text-slate-700 group-hover:text-blue-600 transition-colors">{p.nomeCompleto}</p>
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 text-sm text-slate-600 italic">
-                          {p.empresaOrigemNome || '—'}
-                        </td>
-                        <td className="px-4 py-3">
-                          {p.lastPresenceStatus === 'entrada' ? <OnSitePulse /> : <StatusBadge status={p.statusAcesso} />}
-                        </td>
-                        <td className="px-4 py-3">
-                          <span className="text-[10px] font-black uppercase text-slate-400 border border-slate-200 px-2 py-0.5 rounded">
-                            {p.tipoAcesso}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </Card>
-          </motion.div>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </Card>
         )}
-      </AnimatePresence>
 
       {filtered.length === 0 && (
         <div className="pt-8 text-center bg-white rounded-2xl border border-slate-100 p-12">
@@ -1053,298 +1038,113 @@ function PortariaView({ profile, companies }: { profile: UserProfile, companies:
       )}
 
       {/* Detail Modal */}
-      <AnimatePresence>
-        {selected && (
-          <Modal title="Detalhes do Acesso" onClose={() => setSelected(null)} size="lg">
-            <div className="space-y-6">
-              {/* Header */}
-              <div className="flex items-center gap-4">
-                {selected.foto ? (
-                  <img src={selected.foto} alt="" className="w-20 h-20 rounded-2xl object-cover border-2 border-slate-200" />
-                ) : (
-                  <div className={cn('w-20 h-20 rounded-2xl flex items-center justify-center text-3xl font-bold text-white',
-                    selected.statusAcesso === 'liberado' ? 'bg-emerald-500' : selected.statusAcesso === 'a_vencer' ? 'bg-amber-500' : 'bg-red-500')}>
-                    {selected.nomeCompleto[0]}
-                  </div>
-                )}
-                <div>
-                  <h3 className="text-lg font-bold text-slate-900">{selected.nomeCompleto}</h3>
-                  <p className="text-sm text-slate-500">{selected.empresaOrigemNome || 'Empresa não informada'}</p>
-                  <div className="mt-2 flex items-center gap-2">
-                    <StatusBadge status={selected.statusAcesso} />
-                    {selected.lastPresenceStatus === 'entrada' && selected.lastPresenceTimestamp && (
-                      <TimeCounter startTime={selected.lastPresenceTimestamp} />
-                    )}
-                  </div>
+      {/* Detail Modal */}
+      {selected && (
+        <Modal title="Detalhes do Acesso" onClose={() => setSelected(null)} size="lg">
+          <div className="space-y-6">
+            {/* Header */}
+            <div className="flex items-center gap-4">
+              {selected.foto ? (
+                <img src={selected.foto} alt="" className="w-20 h-20 rounded-2xl object-cover border-2 border-slate-200" />
+              ) : (
+                <div className={cn('w-20 h-20 rounded-2xl flex items-center justify-center text-3xl font-bold text-white',
+                  selected.statusAcesso === 'liberado' ? 'bg-emerald-500' : selected.statusAcesso === 'a_vencer' ? 'bg-amber-500' : 'bg-red-500')}>
+                  {selected.nomeCompleto ? selected.nomeCompleto[0] : '?'}
                 </div>
-              </div>
-
-              {/* Blocking Reasons Alert */}
-              {selected.statusAcesso !== 'liberado' && (
-                <motion.div 
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  className={cn(
-                    'p-4 rounded-2xl border-2 flex items-start gap-4',
-                    selected.statusAcesso === 'bloqueado' ? 'bg-red-50 border-red-200 text-red-700' : 'bg-amber-50 border-amber-200 text-amber-700'
+              )}
+              <div>
+                <h3 className="text-lg font-bold text-slate-900">{selected.nomeCompleto}</h3>
+                <p className="text-sm text-slate-500">{selected.empresaOrigemNome || 'Empresa não informada'}</p>
+                <div className="mt-2 flex items-center gap-2">
+                  <StatusBadge status={selected.statusAcesso} />
+                  {selected.lastPresenceStatus === 'entrada' && selected.lastPresenceTimestamp && (
+                    <TimeCounter startTime={selected.lastPresenceTimestamp} />
                   )}
-                >
-                  <div className={cn('p-2 rounded-xl', selected.statusAcesso === 'bloqueado' ? 'bg-red-100' : 'bg-amber-100')}>
-                    <AlertTriangle size={20} />
-                  </div>
-                  <div>
-                    <p className="font-black text-xs uppercase tracking-widest mb-1">Motivo do Impedimento</p>
-                    <ul className="space-y-1">
-                      {getBlockingReasons(selected).map((r, i) => (
-                        <li key={i} className="text-sm font-bold flex items-center gap-2">
-                          <span className="w-1.5 h-1.5 rounded-full bg-current opacity-50" />
-                          {r}
-                        </li>
-                      ))}
-                      {getBlockingReasons(selected).length === 0 && (
-                        <li className="text-sm font-bold">Verificar documentos e treinamentos pendentes.</li>
-                      )}
-                    </ul>
-                  </div>
-                </motion.div>
-              )}
-
-              {/* Info Grid */}
-              <div className="grid grid-cols-2 gap-3">
-                {[
-                  { label: 'Tipo de Acesso', value: selected.tipoAcesso === 'visitante' ? 'Visitante' : 'Prestador de Serviço' },
-                  { 
-                    label: selected.documento.replace(/\D/g, '').length === 11 ? 'CPF' : 'RG', 
-                    value: maskLGPD(selected.documento) 
-                  },
-                  { label: 'Responsável Interno', value: selected.responsavelInterno },
-                  { label: 'Liberado Até', value: fmtDate(selected.liberadoAte) },
-                  { label: 'Celular Autorizado', value: selected.celularAutorizado ? 'Sim' : 'Não' },
-                  { label: 'Notebook Autorizado', value: selected.notebookAutorizado ? 'Sim' : 'Não' },
-                  ...(selected.tipoAcesso === 'prestador' ? [
-                    { label: 'ASO / Saúde Ocupacional', value: fmtDate(selected.asoDataRealizacao) },
-                    { label: 'EPI Obrigatório', value: selected.epiObrigatorio ? `Sim — ${selected.epiDescricao || ''}` : 'Não' },
-                    { label: 'Atividade Principal', value: selected.atividadeNome || '—' },
-                  ] : []),
-                ].map(({ label, value }) => (
-                  <div key={label} className="bg-slate-50 rounded-xl p-3 border border-slate-100">
-                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">{label}</p>
-                    <p className="text-sm font-semibold text-slate-800 mt-1">{value}</p>
-                  </div>
-                ))}
+                </div>
               </div>
+            </div>
 
-              {/* Treinamentos */}
-              {selected.tipoAcesso === 'prestador' && selected.treinamentos && selected.treinamentos.length > 0 && (
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-                    <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest">Treinamentos e Validades</h4>
-                    <ShieldCheck size={16} className="text-blue-500" />
-                  </div>
-                  <div className="grid gap-2">
-                    {selected.treinamentos.map((t, i) => {
-                      const st = t.statusTreinamento;
-                      const isVencido = st === 'Vencido';
-                      const isAVencer = st === 'A Vencer';
-                      const isValido  = !isVencido && !isAVencer;
-                      const cardCol = isVencido ? 'border-red-200 bg-red-50' : isAVencer ? 'border-amber-200 bg-amber-50' : 'border-emerald-100 bg-emerald-50/50';
-                      const iconCol  = isVencido ? 'bg-red-100 text-red-600' : isAVencer ? 'bg-amber-100 text-amber-600' : 'bg-emerald-100 text-emerald-600';
-                      const badgeCol = isVencido ? 'bg-red-600 text-white' : isAVencer ? 'bg-amber-500 text-white' : 'bg-emerald-600 text-white';
-                      const badgeLabel = isVencido ? 'Vencido' : isAVencer ? 'A Vencer' : 'Válido';
-                      
-                      return (
-                        <div key={i} className={cn('flex items-center justify-between p-3 rounded-xl border transition-all', cardCol)}>
-                          <div className="flex items-center gap-3">
-                            <div className={cn('p-2 rounded-lg', iconCol)}>
-                              {isVencido ? <AlertTriangle size={16} /> : isAVencer ? <AlertTriangle size={16} /> : <CheckCircle2 size={16} />}
-                            </div>
-                            <div>
-                              <p className="text-sm font-bold text-slate-800">{t.treinamentoNome}</p>
-                              <p className={cn('text-[11px] font-medium', isVencido ? 'text-red-600' : isAVencer ? 'text-amber-600' : 'text-slate-500')}>
-                                Vencimento: <span className="font-bold">{fmtDate(t.dataVencimento)}</span>
-                              </p>
-                            </div>
-                          </div>
-                          <span className={cn('text-[10px] font-black uppercase px-2 py-1 rounded-md shadow-sm', badgeCol)}>
-                            {badgeLabel}
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
+            {/* Info Grid - Simplificado para robustez */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="bg-slate-50 rounded-xl p-3 border border-slate-100">
+                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Tipo de Acesso</p>
+                <p className="text-sm font-semibold text-slate-800 mt-1">{selected.tipoAcesso === 'visitante' ? 'Visitante' : 'Prestador'}</p>
+              </div>
+              <div className="bg-slate-50 rounded-xl p-3 border border-slate-100">
+                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Documento</p>
+                <p className="text-sm font-semibold text-slate-800 mt-1">{maskLGPD(selected.documento || '')}</p>
+              </div>
+            </div>
 
-              {/* Armário em uso */}
-              {selected.lastPresenceStatus === 'entrada' && selected.armario && (
-                <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-center gap-3">
-                  <div className="p-2 bg-amber-100 text-amber-700 rounded-lg">
-                    <Key size={18} />
-                  </div>
-                  <div>
-                    <p className="text-[10px] font-black text-amber-500 uppercase tracking-tighter">Armário em Uso</p>
-                    <p className="text-sm font-bold text-amber-900">{selected.armario}</p>
-                  </div>
-                </div>
-              )}
-
-              {/* Ações */}
-              <div className="flex flex-col gap-3 pt-2">
-                {selected.tipoAcesso === 'prestador' && !selected.isApproved && (profile.isSafety || profile.role === 'master') && (
-                  <Button variant="success" className="w-full h-12 text-base shadow-lg shadow-emerald-600/20" 
-                    disabled={actionLoading}
-                    onClick={() => handleApprove(selected.id)}>
-                    <ShieldCheck size={20} /> Aprovar pela Segurança
+            {/* Ações */}
+            <div className="flex flex-col gap-3 pt-2">
+              <div className="flex gap-3">
+                {selected.lastPresenceStatus === 'entrada' ? (
+                  <Button variant="danger" className="flex-1 h-12 text-base shadow-lg shadow-red-600/20" disabled={actionLoading}
+                    onClick={() => handleRegistrar(selected.id, 'saida')}>
+                    <ArrowLeftCircle size={20} /> Registrar Saída
+                  </Button>
+                ) : (
+                  <Button variant="success" className="flex-1 h-12 text-base shadow-lg shadow-emerald-600/20" 
+                    disabled={actionLoading || selected.statusAcesso === 'bloqueado'}
+                    onClick={() => handleRegistrar(selected.id, 'entrada')}>
+                    <ArrowRightCircle size={20} /> Registrar Entrada
                   </Button>
                 )}
-
-                <div className="flex gap-3">
-                  {selected.lastPresenceStatus === 'entrada' ? (
-                    <Button variant="danger" className="flex-1 h-12 text-base shadow-lg shadow-red-600/20" disabled={actionLoading}
-                      onClick={() => handleRegistrar(selected!.id, 'saida')}>
-                      <ArrowLeftCircle size={20} /> Registrar Saída
-                    </Button>
-                  ) : (
-                    <Button variant="success" className="flex-1 h-12 text-base shadow-lg shadow-emerald-600/20" 
-                      disabled={actionLoading || selected.statusAcesso === 'bloqueado'}
-                      onClick={() => handleRegistrar(selected!.id, 'entrada')}>
-                      <ArrowRightCircle size={20} /> Registrar Entrada
-                    </Button>
-                  )}
-                </div>
               </div>
-              {selected.statusAcesso === 'bloqueado' && selected.lastPresenceStatus !== 'entrada' && (
-                <p className="text-xs text-red-600 text-center font-semibold bg-red-50 py-2 rounded-lg border border-red-100">
-                  ⚠️ Acesso bloqueado — entrada não permitida. Verifique as pendências acima.
-                </p>
-              )}
             </div>
-          </Modal>
-        )}
-      </AnimatePresence>
+          </div>
+        </Modal>
+      )}
 
       {/* Locker Prompt Modal */}
-      <AnimatePresence>
-        {lockerPrompt && (
-          <Modal 
-            title={lockerPrompt.status === 'entrada' ? "Uso de Armário" : "Confirmar Saída"} 
-            onClose={() => setLockerPrompt(null)} 
-            size="sm"
-          >
-            <div className="space-y-5">
-              {lockerPrompt.status === 'entrada' ? (
-                <>
-                  <div className="flex items-center gap-3 p-3 bg-blue-50 rounded-xl border border-blue-100">
-                    <Key className="text-blue-600" size={24} />
-                    <p className="text-sm text-blue-900 font-medium leading-tight">
-                      O visitante/prestador utilizará algum armário para guardar pertences?
-                    </p>
-                  </div>
-                  
-                  <div className="space-y-4">
-                    <Input 
-                      label="Informe o número (Opcional)"
-                      placeholder="Ex: Armário 15"
-                      value={lockerInput}
-                      onChange={setLockerInput}
-                      autoFocus
-                    />
-                    
-                    <div className="grid grid-cols-2 gap-3">
-                      <Button variant="ghost" onClick={confirmRegistrar} disabled={actionLoading} className="h-12 border-slate-200">
-                        Não Precisa
-                      </Button>
-                      <Button onClick={confirmRegistrar} disabled={actionLoading} className="h-12 shadow-md shadow-blue-500/20">
-                        {lockerInput.trim() ? 'Confirmar' : 'Entrar'}
-                      </Button>
-                    </div>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="space-y-4">
-                    {(() => {
-                      const p = pessoas.find(x => x.id === lockerPrompt.pessoaId);
-                      return p?.armario ? (
-                        <div className="p-4 bg-amber-50 border-2 border-amber-200 rounded-2xl flex flex-col items-center text-center gap-3">
-                          <div className="w-12 h-12 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center shadow-inner">
-                            <Key size={24} />
-                          </div>
-                          <div>
-                            <p className="text-sm font-bold text-amber-900 uppercase">Devolução de Armário</p>
-                            <p className="text-lg font-black text-amber-600">{p.armario}</p>
-                            <p className="text-xs text-amber-700 mt-2 font-medium">Certifique-se de que a pessoa desocupou o armário e devolveu a chave antes de confirmar a saída.</p>
-                          </div>
-                        </div>
-                      ) : (
-                        <p className="text-center text-slate-600 font-medium py-2">Deseja confirmar a saída agora?</p>
-                      );
-                    })()}
-
-                    <div className="grid grid-cols-2 gap-3 pt-2">
-                      <Button variant="ghost" onClick={() => setLockerPrompt(null)} className="h-12 border-slate-200">
-                        Cancelar
-                      </Button>
-                      <Button variant="danger" onClick={() => confirmOutput(lockerPrompt.pessoaId, 'saida')} disabled={actionLoading} className="h-12 shadow-md shadow-red-500/20">
-                        Confirmar Saída
-                      </Button>
-                    </div>
-                  </div>
-                </>
-              )}
+      {lockerPrompt && (
+        <Modal 
+          title={lockerPrompt.status === 'entrada' ? "Uso de Armário" : "Confirmar Saída"} 
+          onClose={() => setLockerPrompt(null)} 
+          size="sm"
+        >
+          <div className="space-y-4">
+            <p className="text-sm text-slate-600">{lockerPrompt.status === 'entrada' ? 'Deseja informar um guarda-volumes?' : 'Deseja confirmar a saída?'}</p>
+            {lockerPrompt.status === 'entrada' && (
+              <Input label="Número do Armário (Opcional)" value={lockerInput} onChange={setLockerInput} placeholder="Ex: 15" />
+            )}
+            <div className="grid grid-cols-2 gap-3">
+              <Button variant="ghost" onClick={() => lockerPrompt.status === 'entrada' ? confirmRegistrar() : setLockerPrompt(null)}>
+                {lockerPrompt.status === 'entrada' ? 'Pular' : 'Cancelar'}
+              </Button>
+              <Button variant={lockerPrompt.status === 'entrada' ? 'primary' : 'danger'} onClick={() => lockerPrompt.status === 'entrada' ? confirmRegistrar() : confirmOutput(lockerPrompt.pessoaId, 'saida')}>
+                Confirmar
+              </Button>
             </div>
-          </Modal>
-        )}
-      </AnimatePresence>
+          </div>
+        </Modal>
+      )}
 
-      {/* QR Code Modal for Safety Term */}
-      <AnimatePresence>
-        {termPrompt && (
-          <Modal title="Termo de Segurança Digital" onClose={() => setTermPrompt(null)} size="sm">
-            <div className="space-y-6 flex flex-col items-center py-4 text-center">
-              <div className="p-3 bg-blue-50 rounded-2xl border-2 border-blue-100 flex items-center gap-3 w-full">
-                <div className="p-2 bg-blue-100 text-blue-600 rounded-xl">
-                  <ShieldCheck size={24} />
-                </div>
-                <div className="text-left">
-                  <p className="text-sm font-bold text-blue-900 leading-tight">Assinatura Necessária</p>
-                  <p className="text-xs text-blue-700">O prestador deve ler e assinar o termo de segurança para prosseguir.</p>
-                </div>
-              </div>
-
-              <div className="bg-white p-4 rounded-3xl shadow-inner border-2 border-slate-100 min-h-[100px] flex items-center justify-center">
-                {QRCodeSVG && shareUrl ? (
-                  <QRCodeSVG value={shareUrl} size={180} level="H" includeMargin={true} />
-                ) : (
-                  <div className="text-xs text-slate-400 p-4">Erro ao carregar QR Code. Link: {shareUrl}</div>
-                )}
-              </div>
-
-              <div className="space-y-3 w-full">
-                <p className="text-sm font-semibold text-slate-700">Peça ao prestador para escanear o QR Code acima e assinar no celular dele.</p>
-                <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Link de Acesso:</p>
-                  <p className="text-[10px] font-mono text-slate-500 break-all">{shareUrl}</p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3 w-full">
-                <Button variant="ghost" onClick={() => setTermPrompt(null)} className="h-12 border-slate-200">
-                  Cancelar
-                </Button>
-                <Button 
-                  onClick={() => checkSignature(termPrompt.id)} 
-                  disabled={isVerifyingTerm}
-                  className="h-12 shadow-lg shadow-blue-500/20"
-                >
-                  {isVerifyingTerm ? <RefreshCw className="animate-spin mr-2" size={16} /> : <CheckCircle2 className="mr-2" size={16} />}
-                  Já Assinei
-                </Button>
-              </div>
+      {/* Term Prompt Modal */}
+      {termPrompt && (
+        <Modal title="Assinatura Digital" onClose={() => setTermPrompt(null)} size="sm">
+          <div className="space-y-6 text-center">
+            <div className="p-4 bg-blue-50 rounded-xl border border-blue-200">
+               <p className="text-sm text-blue-900 font-bold">Termo de Segurança Obrigatório</p>
+               <p className="text-xs text-blue-700 mt-1">O prestador deve assinar o termo para entrar na unidade.</p>
             </div>
-          </Modal>
-        )}
-      </AnimatePresence>
+            
+            <div className="bg-white p-6 border-2 border-dashed border-slate-200 rounded-2xl">
+               <p className="text-[11px] text-slate-500 leading-relaxed mb-4">Acesse este link no celular do visitante:</p>
+               <p className="text-[10px] bg-slate-50 p-2 rounded border font-mono break-all select-all text-blue-600 mb-4">{shareUrl}</p>
+               {/* QRCodeSVG removido por segurança até o teste de estabilidade */}
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <Button variant="ghost" onClick={() => setTermPrompt(null)}>Cancelar</Button>
+              <Button onClick={() => termPrompt && checkSignature(termPrompt.id)} disabled={isVerifyingTerm}>
+                {isVerifyingTerm ? 'Verificando...' : 'Já Assinei'}
+              </Button>
+            </div>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }
