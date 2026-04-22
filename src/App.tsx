@@ -758,6 +758,7 @@ function PortariaView({ profile, companies }: { profile: UserProfile, companies:
   const [termPrompt, setTermPrompt] = useState<Pessoa | null>(null);
   const [isVerifyingTerm, setIsVerifyingTerm] = useState(false);
   const [lockerInput, setLockerInput] = useState('');
+  const [presenceFilter, setPresenceFilter] = useState<'all' | 'on-site' | 'off-site'>('all');
 
   useEffect(() => { fetchPessoas(); }, []);
 
@@ -779,7 +780,15 @@ function PortariaView({ profile, companies }: { profile: UserProfile, companies:
     return matchesText && matchesType;
   });
 
-  const filtered = baseFiltered.filter(p => !statusFilter || p.statusAcesso === statusFilter);
+  const filtered = baseFiltered.filter(p => {
+    const matchesStatus = !statusFilter || p.statusAcesso === statusFilter;
+    const matchesPresence = 
+      presenceFilter === 'all' ? true :
+      presenceFilter === 'on-site' ? p.lastPresenceStatus === 'entrada' :
+      p.lastPresenceStatus !== 'entrada';
+    
+    return matchesStatus && matchesPresence;
+  });
 
   const confirmRegistrar = async () => {
     if (!lockerPrompt) return;
@@ -872,6 +881,8 @@ function PortariaView({ profile, companies }: { profile: UserProfile, companies:
     liberado:  baseFiltered.filter(p => p.statusAcesso === 'liberado').length,
     a_vencer:  baseFiltered.filter(p => p.statusAcesso === 'a_vencer').length,
     bloqueado: baseFiltered.filter(p => p.statusAcesso === 'bloqueado').length,
+    onSite:    baseFiltered.filter(p => p.lastPresenceStatus === 'entrada').length,
+    offSite:   baseFiltered.filter(p => p.lastPresenceStatus !== 'entrada').length,
   };
 
   const shareUrl = termPrompt 
@@ -932,22 +943,36 @@ function PortariaView({ profile, companies }: { profile: UserProfile, companies:
           <option value="bloqueado" className="text-red-600">🚫 Bloqueados</option>
         </select>
 
-        <div className="flex bg-white p-1 rounded-xl border border-slate-200 shadow-sm">
-          <button 
-            onClick={() => setViewType('card')}
-            className={cn('p-2 rounded-lg transition-all', viewType === 'card' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-600')}
-            title="Visualização em Cards"
-          >
-            <LayoutGrid size={20} />
-          </button>
-          <button 
-            onClick={() => setViewType('list')}
-            className={cn('p-2 rounded-lg transition-all', viewType === 'list' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-600')}
-            title="Visualização em Lista"
-          >
-            <List size={20} />
-          </button>
         </div>
+      </div>
+
+      {/* Presence Tabs */}
+      <div className="flex border-b border-slate-200">
+        {[
+          { id: 'all',      label: 'Todos',          count: baseFiltered.length },
+          { id: 'on-site',  label: 'Na Unidade',     count: statusCount.onSite },
+          { id: 'off-site', label: 'Fora da Unidade', count: statusCount.offSite },
+        ].map(t => (
+          <button
+            key={t.id}
+            onClick={() => setPresenceFilter(t.id as any)}
+            className={cn(
+              'px-6 py-4 text-sm font-bold transition-all border-b-2 relative',
+              presenceFilter === t.id 
+                ? 'border-blue-600 text-blue-600' 
+                : 'border-transparent text-slate-400 hover:text-slate-600'
+            )}
+          >
+            {t.label}
+            <span className={cn(
+              'ml-2 px-1.5 py-0.5 rounded-md text-[10px] font-black',
+              presenceFilter === t.id ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 text-slate-500'
+            )}>
+              {t.count}
+            </span>
+          </button>
+        ))}
+      </div>
       </div>
       {viewType === 'card' ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
