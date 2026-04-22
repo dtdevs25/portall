@@ -1064,17 +1064,74 @@ function PortariaView({ profile, companies }: { profile: UserProfile, companies:
               </div>
             </div>
 
-            {/* Info Grid - Simplificado para robustez */}
+            {/* Blocking Reasons Alert */}
+            {selected.statusAcesso !== 'liberado' && (
+              <div className={cn(
+                'p-4 rounded-2xl border-2 flex items-start gap-4',
+                selected.statusAcesso === 'bloqueado' ? 'bg-red-50 border-red-200 text-red-700' : 'bg-amber-50 border-amber-200 text-amber-700'
+              )}>
+                <div className={cn('p-2 rounded-xl', selected.statusAcesso === 'bloqueado' ? 'bg-red-100' : 'bg-amber-100')}>
+                  <AlertTriangle size={20} />
+                </div>
+                <div>
+                  <p className="font-black text-xs uppercase tracking-widest mb-1">Motivo do Impedimento</p>
+                  <ul className="space-y-1">
+                    {getBlockingReasons(selected).map((r, i) => (
+                      <li key={i} className="text-sm font-bold flex items-center gap-2">
+                        <span className="w-1.5 h-1.5 rounded-full bg-current opacity-50" />
+                        {r}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            )}
+
+            {/* Info Grid - Completo */}
             <div className="grid grid-cols-2 gap-3">
-              <div className="bg-slate-50 rounded-xl p-3 border border-slate-100">
-                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Tipo de Acesso</p>
-                <p className="text-sm font-semibold text-slate-800 mt-1">{selected.tipoAcesso === 'visitante' ? 'Visitante' : 'Prestador'}</p>
-              </div>
-              <div className="bg-slate-50 rounded-xl p-3 border border-slate-100">
-                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Documento</p>
-                <p className="text-sm font-semibold text-slate-800 mt-1">{maskLGPD(selected.documento || '')}</p>
-              </div>
+              {[
+                { label: 'Tipo de Acesso', value: selected.tipoAcesso === 'visitante' ? 'Visitante' : 'Prestador' },
+                { label: 'Documento', value: maskLGPD(selected.documento || '') },
+                { label: 'Responsável Interno', value: selected.responsavelInterno || '—' },
+                { label: 'Liberado Até', value: fmtDate(selected.liberadoAte) },
+                { label: 'Celular Autorizado', value: selected.celularAutorizado ? 'Sim' : 'Não' },
+                { label: 'Notebook Autorizado', value: selected.notebookAutorizado ? 'Sim' : 'Não' },
+                ...(selected.tipoAcesso === 'prestador' ? [
+                  { label: 'ASO / Saúde', value: fmtDate(selected.asoDataRealizacao) },
+                  { label: 'EPI Obrigatório', value: selected.epiObrigatorio ? `Sim — ${selected.epiDescricao || ''}` : 'Não' },
+                ] : []),
+              ].map(({ label, value }) => (
+                <div key={label} className="bg-slate-50 rounded-xl p-3 border border-slate-100">
+                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">{label}</p>
+                  <p className="text-sm font-semibold text-slate-800 mt-1">{value}</p>
+                </div>
+              ))}
             </div>
+
+            {/* Treinamentos */}
+            {selected.tipoAcesso === 'prestador' && selected.treinamentos && selected.treinamentos.length > 0 && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                  <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest">Treinamentos</h4>
+                  <ShieldCheck size={16} className="text-blue-500" />
+                </div>
+                <div className="grid gap-2">
+                  {selected.treinamentos.map((t, i) => (
+                    <div key={i} className={cn('flex items-center justify-between p-3 rounded-xl border', 
+                      t.statusTreinamento === 'Vencido' ? 'border-red-200 bg-red-50' : 'border-emerald-100 bg-emerald-50/50')}>
+                      <div>
+                        <p className="text-sm font-bold text-slate-800">{t.treinamentoNome}</p>
+                        <p className="text-[11px] text-slate-500">Vencimento: {fmtDate(t.dataVencimento)}</p>
+                      </div>
+                      <span className={cn('text-[10px] font-black uppercase px-2 py-1 rounded-md text-white', 
+                        t.statusTreinamento === 'Vencido' ? 'bg-red-600' : 'bg-emerald-600')}>
+                        {t.statusTreinamento}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Ações */}
             <div className="flex flex-col gap-3 pt-2">
@@ -1130,10 +1187,14 @@ function PortariaView({ profile, companies }: { profile: UserProfile, companies:
                <p className="text-xs text-blue-700 mt-1">O prestador deve assinar o termo para entrar na unidade.</p>
             </div>
             
-            <div className="bg-white p-6 border-2 border-dashed border-slate-200 rounded-2xl">
-               <p className="text-[11px] text-slate-500 leading-relaxed mb-4">Acesse este link no celular do visitante:</p>
-               <p className="text-[10px] bg-slate-50 p-2 rounded border font-mono break-all select-all text-blue-600 mb-4">{shareUrl}</p>
-               {/* QRCodeSVG removido por segurança até o teste de estabilidade */}
+            <div className="bg-white p-6 border-2 border-dashed border-slate-200 rounded-2xl flex flex-col items-center">
+               <p className="text-[11px] text-slate-500 leading-relaxed mb-4">Escanear QR Code para assinar:</p>
+               {QRCodeSVG && shareUrl && (
+                  <div className="mb-4 bg-white p-2 rounded-xl shadow-sm border border-slate-100">
+                    <QRCodeSVG value={shareUrl} size={160} level="H" includeMargin={true} />
+                  </div>
+               )}
+               <p className="text-[10px] bg-slate-50 p-2 rounded border font-mono break-all select-all text-blue-600">{shareUrl}</p>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
