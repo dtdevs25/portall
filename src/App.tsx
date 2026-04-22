@@ -15,6 +15,8 @@ import {
 import { format, parseISO, isValid } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { motion, AnimatePresence } from 'motion/react';
+import { QRCodeSVG } from 'qrcode.react';
+import SignatureCanvas from 'react-signature-canvas';
 
 // Custom CSS for Modal scrollbar
 const modalStyles = `
@@ -106,6 +108,100 @@ function getBlockingReasons(p: Pessoa) {
   }
 
   return reasons;
+}
+
+// ─── Componente Público: Assinatura de Termo ──────────────────────────────
+function PublicTermSigner({ pessoaId }: { pessoaId: string }) {
+  const [pessoa, setPessoa] = useState<{ nome_completo: string, company_name: string } | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [signing, setSigning] = useState(false);
+  const [signed, setSigned] = useState(false);
+  const sigCanvas = useRef<SignatureCanvas>(null);
+
+  useEffect(() => {
+    api.get(`/public/termo/${pessoaId}`)
+      .then(res => setPessoa(res as any))
+      .catch(() => setPessoa(null))
+      .finally(() => setLoading(false));
+  }, [pessoaId]);
+
+  const handleSave = async () => {
+    if (sigCanvas.current?.isEmpty()) {
+      alert('Por favor, assine na tela antes de confirmar.');
+      return;
+    }
+    setSigning(true);
+    try {
+      const signatureB64 = sigCanvas.current?.getTrimmedCanvas().toDataURL('image/png');
+      await api.post(`/public/termo/${pessoaId}/assinar`, { assinatura: signatureB64 });
+      setSigned(true);
+    } catch (err: any) {
+      alert(err.error || 'Erro ao salvar assinatura.');
+    } finally {
+      setSigning(false);
+    }
+  };
+
+  if (loading) return <div className="flex items-center justify-center min-h-screen"><RefreshCw className="animate-spin text-blue-600" /></div>;
+  if (!pessoa) return <div className="p-10 text-center">Cadastro não encontrado ou token inválido.</div>;
+  if (signed) return (
+    <div className="flex flex-col items-center justify-center min-h-screen p-6 text-center space-y-4">
+      <div className="w-20 h-20 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center">
+        <CheckCircle2 size={40} />
+      </div>
+      <h1 className="text-2xl font-bold text-slate-900">Termo Assinado!</h1>
+      <p className="text-slate-500">Obrigado, {pessoa.nome_completo.split(' ')[0]}. Sua entrada está sendo liberada na portaria.</p>
+      <p className="text-xs text-slate-400">Pode fechar esta janela agora.</p>
+    </div>
+  );
+
+  return (
+    <div className="min-h-screen bg-slate-50 p-4 md:p-8 flex flex-col">
+      <div className="max-w-xl mx-auto w-full bg-white rounded-3xl shadow-xl overflow-hidden flex flex-col flex-1 border border-slate-200">
+        <div className="p-6 bg-[#001A33] text-white">
+          <div className="flex items-center gap-3 mb-2">
+            <ShieldCheck className="text-blue-400" size={24} />
+            <h1 className="text-lg font-bold">Termo de Segurança</h1>
+          </div>
+          <p className="text-blue-200 text-xs">Unidade: {pessoa.company_name}</p>
+        </div>
+
+        <div className="p-6 overflow-y-auto flex-1 text-sm text-slate-700 leading-relaxed space-y-4">
+          <p>Eu, <strong>{pessoa.nome_completo}</strong>, declaro para os devidos fins que:</p>
+          <ul className="list-disc pl-5 space-y-2">
+            <li>Fui devidamente informado sobre as <strong>regras de segurança</strong> vigentes nesta unidade.</li>
+            <li>Comprometo-me a cumprir todas as normas de segurança do trabalho e diretrizes da <strong>{pessoa.company_name}</strong>.</li>
+            <li>Estou ciente da <strong>obrigatoriedade do uso de todos os EPIs</strong> (Equipamentos de Proteção Individual) necessários para a minha atividade conforme orientações recebidas.</li>
+            <li>Portarei os EPIs do início ao fim da execução das atividades, respeitando a sinalização e zonas de risco.</li>
+          </ul>
+          <p className="font-semibold text-red-600">⚠️ O não cumprimento de qualquer norma de segurança poderá resultar na suspensão imediata do acesso e das atividades.</p>
+        </div>
+
+        <div className="p-6 bg-slate-50 border-t border-slate-100">
+          <p className="text-xs font-bold text-slate-400 uppercase mb-2">Assine aqui:</p>
+          <div className="bg-white border-2 border-dashed border-slate-200 rounded-xl overflow-hidden h-48 relative">
+            <SignatureCanvas 
+              ref={sigCanvas}
+              penColor="#001A33"
+              canvasProps={{ className: 'w-full h-full cursor-crosshair' }}
+            />
+            <button 
+              onClick={() => sigCanvas.current?.clear()}
+              className="absolute bottom-2 right-2 p-2 bg-slate-100 text-slate-500 rounded-lg text-[10px] font-bold hover:bg-slate-200"
+            >Limpar</button>
+          </div>
+          <Button 
+            variant="success" 
+            className="w-full mt-4 h-14 text-base shadow-xl"
+            disabled={signing}
+            onClick={handleSave}
+          >
+            {signing ? 'Enviando...' : 'Confirmar e Assinar'}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function OnSitePulse() {
@@ -660,6 +756,8 @@ function PortariaView({ profile }: { profile: UserProfile }) {
   const [actionLoading, setActionLoading] = useState(false);
   const [viewType, setViewType] = useState<'card' | 'list'>('card');
   const [lockerPrompt, setLockerPrompt] = useState<{pessoaId: string, status: 'entrada'|'saida'} | null>(null);
+  const [termPrompt, setTermPrompt] = useState<Pessoa | null>(null);
+  const [isVerifyingTerm, setIsVerifyingTerm] = useState(false);
   const [lockerInput, setLockerInput] = useState('');
 
   useEffect(() => { fetchPessoas(); }, []);
@@ -702,13 +800,40 @@ function PortariaView({ profile }: { profile: UserProfile }) {
     } finally { setActionLoading(false); }
   };
 
+  const checkSignature = async (idPessoa: string) => {
+    setIsVerifyingTerm(true);
+    try {
+      const p = await api.get<Pessoa>(`/pessoas/${idPessoa}`);
+      if (p.termoAssinadoEm) {
+        setTermPrompt(null);
+        setLockerPrompt({ pessoaId: idPessoa, status: 'entrada' });
+        setLockerInput('');
+      } else {
+        alert('O termo ainda não foi assinado no celular do colaborador.');
+      }
+    } catch (err) {
+      alert('Erro ao verificar assinatura.');
+    } finally {
+      setIsVerifyingTerm(false);
+    }
+  };
+
   const handleRegistrar = (pessoaId: string, status: 'entrada' | 'saida') => {
+    const pessoa = pessoas.find(p => p.id === pessoaId);
+    
+    if (status === 'entrada' && pessoa?.tipoAcesso === 'prestador') {
+      const currentUnit = (window as any).__COMPANIES__?.find((c: any) => c.id === profile.companyId);
+      if (currentUnit?.requiresSafetyTerm && !pessoa.termoAssinadoEm) {
+        setTermPrompt(pessoa);
+        return;
+      }
+    }
+
     if (status === 'entrada') {
       setLockerPrompt({ pessoaId, status });
       setLockerInput('');
     } else {
       setLockerPrompt({ pessoaId, status });
-      // Para saída, podemos chamar direto ou deixar o modal confirmar. Vamos chamar direto para acelerar:
       confirmOutput(pessoaId, status);
     }
   };
@@ -743,6 +868,8 @@ function PortariaView({ profile }: { profile: UserProfile }) {
     a_vencer:  baseFiltered.filter(p => p.statusAcesso === 'a_vencer').length,
     bloqueado: baseFiltered.filter(p => p.statusAcesso === 'bloqueado').length,
   };
+
+  const shareUrl = `${window.location.origin}${window.location.pathname}?termToken=${termPrompt?.id}`;
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">
@@ -1158,6 +1285,51 @@ function PortariaView({ profile }: { profile: UserProfile }) {
                   </div>
                 </>
               )}
+            </div>
+          </Modal>
+        )}
+      </AnimatePresence>
+
+      {/* QR Code Modal for Safety Term */}
+      <AnimatePresence>
+        {termPrompt && (
+          <Modal title="Termo de Segurança Digital" onClose={() => setTermPrompt(null)} size="sm">
+            <div className="space-y-6 flex flex-col items-center py-4 text-center">
+              <div className="p-3 bg-blue-50 rounded-2xl border-2 border-blue-100 flex items-center gap-3 w-full">
+                <div className="p-2 bg-blue-100 text-blue-600 rounded-xl">
+                  <ShieldCheck size={24} />
+                </div>
+                <div className="text-left">
+                  <p className="text-sm font-bold text-blue-900 leading-tight">Assinatura Necessária</p>
+                  <p className="text-xs text-blue-700">O prestador deve ler e assinar o termo de segurança para prosseguir.</p>
+                </div>
+              </div>
+
+              <div className="bg-white p-4 rounded-3xl shadow-inner border-2 border-slate-100">
+                <QRCodeSVG value={shareUrl} size={200} level="H" includeMargin={true} />
+              </div>
+
+              <div className="space-y-3 w-full">
+                <p className="text-sm font-semibold text-slate-700">Peça ao prestador para escanear o QR Code acima e assinar no celular dele.</p>
+                <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Link de Acesso:</p>
+                  <p className="text-[10px] font-mono text-slate-500 break-all">{shareUrl}</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 w-full">
+                <Button variant="ghost" onClick={() => setTermPrompt(null)} className="h-12 border-slate-200">
+                  Cancelar
+                </Button>
+                <Button 
+                  onClick={() => checkSignature(termPrompt.id)} 
+                  disabled={isVerifyingTerm}
+                  className="h-12 shadow-lg shadow-blue-500/20"
+                >
+                  {isVerifyingTerm ? <RefreshCw className="animate-spin mr-2" size={16} /> : <CheckCircle2 className="mr-2" size={16} />}
+                  Já Assinei
+                </Button>
+              </div>
             </div>
           </Modal>
         )}
@@ -2095,8 +2267,8 @@ function CompaniesView({ profile }: { profile: UserProfile }) {
   const [editTarget, setEditTarget] = useState<Company | null>(null);         // company/branch being edited
 
   // Forms
-  const [companyForm, setCompanyForm] = useState({ name: '', cnpj: '' });
-  const [branchForm, setBranchForm] = useState({ name: '', cnpj: '' });
+  const [companyForm, setCompanyForm] = useState({ name: '', cnpj: '', requiresSafetyTerm: false });
+  const [branchForm, setBranchForm] = useState({ name: '', cnpj: '', requiresSafetyTerm: false });
   const [saving, setSaving] = useState(false);
   const [togglingAdmin, setTogglingAdmin] = useState<string | null>(null);
 
@@ -2167,8 +2339,9 @@ function CompaniesView({ profile }: { profile: UserProfile }) {
       await api.post('/companies', {
         name: companyForm.name,
         cnpj: companyForm.cnpj.replace(/\D/g, ''),
+        requiresSafetyTerm: companyForm.requiresSafetyTerm
       });
-      setCompanyForm({ name: '', cnpj: '' });
+      setCompanyForm({ name: '', cnpj: '', requiresSafetyTerm: false });
       setShowNewCompany(false);
       fetchAll();
     } catch (err: any) { alert(err.error || 'Erro ao criar empresa.'); }
@@ -2184,8 +2357,9 @@ function CompaniesView({ profile }: { profile: UserProfile }) {
         name: branchForm.name,
         cnpj: branchForm.cnpj.replace(/\D/g, ''),
         parentId: showBranchFor.id,
+        requiresSafetyTerm: branchForm.requiresSafetyTerm
       });
-      setBranchForm({ name: '', cnpj: '' });
+      setBranchForm({ name: '', cnpj: '', requiresSafetyTerm: false });
       setShowBranchFor(null);
       fetchAll();
     } catch (err: any) { alert(err.error || 'Erro ao criar filial.'); }
@@ -2200,8 +2374,9 @@ function CompaniesView({ profile }: { profile: UserProfile }) {
       await api.put(`/companies/${editTarget.id}`, {
         name: companyForm.name,
         cnpj: companyForm.cnpj.replace(/\D/g, ''),
+        requiresSafetyTerm: companyForm.requiresSafetyTerm
       });
-      setCompanyForm({ name: '', cnpj: '' });
+      setCompanyForm({ name: '', cnpj: '', requiresSafetyTerm: false });
       setEditTarget(null);
       fetchAll();
     } catch (err: any) { alert(err.error || 'Erro ao atualizar.'); }
@@ -2330,7 +2505,10 @@ function CompaniesView({ profile }: { profile: UserProfile }) {
                     <Plus size={14} /> Filial
                   </button>
                   <button
-                    onClick={() => { setCompanyForm({ name: company.name, cnpj: company.cnpj || '' }); setEditTarget(company); }}
+                    onClick={() => { 
+                      setCompanyForm({ name: company.name, cnpj: company.cnpj || '', requiresSafetyTerm: company.requiresSafetyTerm || false }); 
+                      setEditTarget(company); 
+                    }}
                     className="p-1.5 rounded-xl text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-all"
                     title="Editar Empresa"
                   >
@@ -2409,7 +2587,14 @@ function CompaniesView({ profile }: { profile: UserProfile }) {
                       </div>
                       <div className="flex items-center justify-end gap-1 group">
                         <button
-                          onClick={() => { setBranchForm({ name: branch.name, cnpj: branch.cnpj || '' }); setEditTarget(branch); }}
+                          onClick={() => { 
+                            setBranchForm({ 
+                              name: branch.name, 
+                              cnpj: branch.cnpj || '',
+                              requiresSafetyTerm: branch.requiresSafetyTerm || false
+                            }); 
+                            setEditTarget(branch); 
+                          }}
                           className="p-2 rounded-xl text-slate-300 hover:text-blue-600 hover:bg-blue-50 transition-all opacity-0 group-hover:opacity-100"
                           title="Editar Unidade"
                         >
@@ -2446,6 +2631,19 @@ function CompaniesView({ profile }: { profile: UserProfile }) {
               <Input label="CNPJ" value={companyForm.cnpj}
                 onChange={v => setCompanyForm(f => ({ ...f, cnpj: maskCNPJ(v) }))}
                 placeholder="00.000.000/0000-00" />
+
+              <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-200">
+                <input 
+                  type="checkbox" 
+                  id="req_term_new"
+                  checked={companyForm.requiresSafetyTerm}
+                  onChange={e => setCompanyForm(f => ({ ...f, requiresSafetyTerm: e.target.checked }))}
+                  className="w-5 h-5 rounded-lg text-blue-600 focus:ring-blue-500 border-slate-300"
+                />
+                <label htmlFor="req_term_new" className="text-sm font-semibold text-slate-700 cursor-pointer">
+                  Exigir Termo de Segurança Digital na entrada
+                </label>
+              </div>
               <div className="flex justify-end gap-2 pt-2">
                 <Button variant="ghost" onClick={() => setShowNewCompany(false)}>Cancelar</Button>
                 <Button type="submit" disabled={saving}>{saving ? 'Criando...' : 'Criar Empresa'}</Button>
@@ -2470,6 +2668,19 @@ function CompaniesView({ profile }: { profile: UserProfile }) {
               <Input label="CNPJ" value={branchForm.cnpj}
                 onChange={v => setBranchForm(f => ({ ...f, cnpj: maskCNPJ(v) }))}
                 placeholder="00.000.000/0000-00" />
+
+              <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-200">
+                <input 
+                  type="checkbox" 
+                  id="req_term_branch"
+                  checked={branchForm.requiresSafetyTerm}
+                  onChange={e => setBranchForm(f => ({ ...f, requiresSafetyTerm: e.target.checked }))}
+                  className="w-5 h-5 rounded-lg text-blue-600 focus:ring-blue-500 border-slate-300"
+                />
+                <label htmlFor="req_term_branch" className="text-sm font-semibold text-slate-700 cursor-pointer">
+                  Exigir Termo de Segurança Digital na entrada
+                </label>
+              </div>
               <div className="flex justify-end gap-2 pt-2">
                 <Button variant="ghost" onClick={() => setShowBranchFor(null)}>Cancelar</Button>
                 <Button type="submit" disabled={saving}>{saving ? 'Criando...' : 'Criar Filial'}</Button>
@@ -2489,6 +2700,19 @@ function CompaniesView({ profile }: { profile: UserProfile }) {
               <Input label="CNPJ" value={companyForm.cnpj}
                 onChange={v => setCompanyForm(f => ({ ...f, cnpj: maskCNPJ(v) }))}
                 placeholder="00.000.000/0000-00" />
+
+              <div className="flex items-center gap-3 p-3 bg-blue-50/50 rounded-xl border border-blue-100">
+                <input 
+                  type="checkbox" 
+                  id="req_term_edit"
+                  checked={companyForm.requiresSafetyTerm}
+                  onChange={e => setCompanyForm(f => ({ ...f, requiresSafetyTerm: e.target.checked }))}
+                  className="w-5 h-5 rounded-lg text-blue-600 focus:ring-blue-500 border-slate-300"
+                />
+                <label htmlFor="req_term_edit" className="text-sm font-semibold text-slate-700 cursor-pointer">
+                  Exigir Termo de Segurança Digital nesta unidade
+                </label>
+              </div>
               <div className="flex justify-end gap-2 pt-2">
                 <Button variant="ghost" onClick={() => setEditTarget(null)}>Cancelar</Button>
                 <Button type="submit" disabled={saving}>{saving ? 'Atualizando...' : 'Salvar Alterações'}</Button>
@@ -2612,12 +2836,21 @@ export default function App() {
     const params = new URLSearchParams(window.location.search);
     const token = params.get('reset_token');
     if (token) { setResetToken(token); window.history.replaceState({}, '', window.location.pathname); }
+    const termToken = params.get('termToken');
+    if (termToken) { window.history.replaceState({}, '', window.location.pathname); }
     checkSession();
   }, []);
 
+  const termToken = new URLSearchParams(window.location.search).get('termToken');
+
+  if (termToken) return <PublicTermSigner pessoaId={termToken} />;
+
   useEffect(() => {
     if (profile) {
-      api.get<Company[]>('/companies').then(c => setCompanies(c || [])).catch(() => {});
+      api.get<Company[]>('/companies').then(c => {
+        setCompanies(c || []);
+        (window as any).__COMPANIES__ = c || [];
+      }).catch(() => {});
     }
   }, [profile]);
 

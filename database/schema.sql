@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS companies (
   name VARCHAR(255) UNIQUE NOT NULL,
   cnpj VARCHAR(20) UNIQUE,
   is_active BOOLEAN DEFAULT TRUE,
+  requires_safety_term BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -27,6 +28,7 @@ CREATE TABLE IF NOT EXISTS users (
   password_hash VARCHAR(255) NOT NULL,
   role VARCHAR(50) NOT NULL DEFAULT 'viewer' CHECK (role IN ('master', 'admin', 'viewer')),
   company_id UUID REFERENCES companies(id) ON DELETE CASCADE, -- Master pode ser nulo
+  is_safety BOOLEAN DEFAULT FALSE,
   reset_token VARCHAR(255),
   reset_token_expires TIMESTAMPTZ,
   is_active BOOLEAN DEFAULT TRUE,
@@ -89,6 +91,7 @@ CREATE TABLE IF NOT EXISTS pessoas (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   company_id UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
   tipo_acesso VARCHAR(50) NOT NULL CHECK (tipo_acesso IN ('visitante', 'prestador')),
+  is_approved BOOLEAN NOT NULL DEFAULT TRUE,
   
   -- Dados Obrigatórios Base
   foto TEXT, -- base64 ou URL path
@@ -108,6 +111,10 @@ CREATE TABLE IF NOT EXISTS pessoas (
   aso_data_realizacao DATE,
   epi_obrigatorio BOOLEAN DEFAULT FALSE,
   epi_descricao TEXT,
+
+  -- Termo de Segurança
+  termo_assinado_at TIMESTAMPTZ,
+  termo_assinatura TEXT,
 
   created_by UUID REFERENCES users(id) ON DELETE SET NULL,
   created_at TIMESTAMPTZ DEFAULT NOW(),

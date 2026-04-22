@@ -13,25 +13,21 @@ router.use(requireAuth);
 router.get('/', async (req: AuthRequest, res: Response) => {
   try {
     if (req.user?.role === 'master') {
-      const companies = await query<{
-        id: string; parent_id: string | null; name: string;
-        cnpj: string; is_active: boolean; created_at: string;
-      }>(
-        `SELECT id, parent_id, name, cnpj, is_active, created_at
+      const companies = await query(
+        `SELECT id, parent_id, name, cnpj, is_active, requires_safety_term, created_at
          FROM companies
          ORDER BY name ASC`
       );
-      res.json(companies.map(c => ({
+      res.json((companies as any[]).map(c => ({
         id: c.id, parentId: c.parent_id, name: c.name,
-        cnpj: c.cnpj, isActive: c.is_active, createdAt: c.created_at
+        cnpj: c.cnpj, isActive: c.is_active, 
+        requiresSafetyTerm: !!c.requires_safety_term,
+        createdAt: c.created_at
       })));
     } else {
       // Admin/Viewer: pega matrizes vinculadas diretamente + suas filiais
-      const companies = await query<{
-        id: string; parent_id: string | null; name: string;
-        cnpj: string; is_active: boolean; created_at: string;
-      }>(
-        `SELECT DISTINCT c.id, c.parent_id, c.name, c.cnpj, c.is_active, c.created_at
+      const companies = await query(
+        `SELECT DISTINCT c.id, c.parent_id, c.name, c.cnpj, c.is_active, c.requires_safety_term, c.created_at
          FROM companies c
          WHERE c.id IN (
            -- Empresas diretamente vinculadas ao usuário
@@ -46,9 +42,11 @@ router.get('/', async (req: AuthRequest, res: Response) => {
          ORDER BY name ASC`,
         [req.user!.userId]
       );
-      res.json(companies.map(c => ({
+      res.json((companies as any[]).map(c => ({
         id: c.id, parentId: c.parent_id, name: c.name,
-        cnpj: c.cnpj, isActive: c.is_active, createdAt: c.created_at
+        cnpj: c.cnpj, isActive: c.is_active, 
+        requiresSafetyTerm: !!c.requires_safety_term,
+        createdAt: c.created_at
       })));
     }
   } catch (err) {
@@ -87,19 +85,18 @@ router.post('/', async (req: AuthRequest, res: Response) => {
       }
     }
 
-    const company = await queryOne<{
-      id: string; parent_id: string | null; name: string;
-      cnpj: string; is_active: boolean; created_at: string;
-    }>(
-      `INSERT INTO companies (name, cnpj, parent_id)
-       VALUES ($1, $2, $3)
-       RETURNING id, parent_id, name, cnpj, is_active, created_at`,
-      [name.trim(), cnpj ? cnpj.trim() : null, parentId || null]
+    const company = await queryOne(
+      `INSERT INTO companies (name, cnpj, parent_id, requires_safety_term)
+       VALUES ($1, $2, $3, $4)
+       RETURNING id, parent_id, name, cnpj, is_active, requires_safety_term, created_at`,
+      [name.trim(), cnpj ? cnpj.trim() : null, parentId || null, !!req.body.requiresSafetyTerm]
     );
 
     res.status(201).json({
       id: company!.id, parentId: company!.parent_id, name: company!.name,
-      cnpj: company!.cnpj, isActive: company!.is_active, createdAt: company!.created_at
+      cnpj: company!.cnpj, isActive: company!.is_active, 
+      requiresSafetyTerm: (company as any).requires_safety_term,
+      createdAt: company!.created_at
     });
   } catch (err: any) {
     console.error('POST /companies error:', err);
@@ -136,14 +133,15 @@ router.put('/:id', async (req: AuthRequest, res: Response) => {
       }
     }
 
-    const company = await queryOne<{
-      id: string; parent_id: string | null; name: string;
-      cnpj: string; is_active: boolean; created_at: string;
-    }>(
-      `UPDATE companies SET name = COALESCE($1, name), cnpj = COALESCE($2, cnpj), is_active = COALESCE($3, is_active)
-       WHERE id = $4
-       RETURNING id, parent_id, name, cnpj, is_active, created_at`,
-      [name?.trim(), cnpj?.trim() || null, is_active, id]
+    const company = await queryOne(
+      `UPDATE companies 
+       SET name = COALESCE($1, name), 
+           cnpj = COALESCE($2, cnpj), 
+           is_active = COALESCE($3, is_active),
+           requires_safety_term = COALESCE($4, requires_safety_term)
+       WHERE id = $5
+       RETURNING id, parent_id, name, cnpj, is_active, requires_safety_term, created_at`,
+      [name?.trim(), cnpj?.trim() || null, is_active, req.body.requiresSafetyTerm !== undefined ? !!req.body.requiresSafetyTerm : null, id]
     );
 
     if (!company) {
@@ -152,8 +150,10 @@ router.put('/:id', async (req: AuthRequest, res: Response) => {
     }
 
     res.json({
-      id: company.id, parentId: company.parent_id, name: company.name,
-      cnpj: company.cnpj, isActive: company.is_active, createdAt: company.created_at
+      id: company.id, parentId: (company as any).parent_id, name: (company as any).name,
+      cnpj: (company as any).cnpj, isActive: (company as any).is_active, 
+      requiresSafetyTerm: (company as any).requires_safety_term,
+      createdAt: (company as any).created_at
     });
   } catch (err: any) {
     console.error('PUT /companies/:id error:', err);

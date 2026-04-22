@@ -3,8 +3,64 @@ import { requireAuth, AuthRequest } from '../auth/middleware.js';
 import { query, queryOne } from '../db.js';
 import { sendMail } from '../mailer.js';
 
+// Roteador de pessoas
 const router = Router();
 
+// ============================================================
+// ROTAS PÚBLICAS (NÃO EXIGEM LOGIN)
+// ============================================================
+
+// Busca dados básicos para exibição do termo
+router.get('/public/termo/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const pessoa = await queryOne<{ nome_completo: string, company_name: string }>(
+      `SELECT p.nome_completo, c.name as company_name 
+       FROM pessoas p
+       JOIN companies c ON p.company_id = c.id
+       WHERE p.id = $1`,
+      [id]
+    );
+
+    if (!pessoa) {
+      res.status(404).json({ error: 'Cadastro não encontrado.' });
+      return;
+    }
+
+    res.json(pessoa);
+  } catch (err) {
+    res.status(500).json({ error: 'Erro ao buscar termo.' });
+  }
+});
+
+// Salva a assinatura do termo
+router.post('/public/termo/:id/assinar', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { assinatura } = req.body; // Base64 image
+
+    if (!assinatura) {
+      res.status(400).json({ error: 'Assinatura é obrigatória.' });
+      return;
+    }
+
+    await query(
+      `UPDATE pessoas 
+       SET termo_assinado_at = NOW(), 
+           termo_assinatura = $1 
+       WHERE id = $2`,
+      [assinatura, id]
+    );
+
+    res.json({ success: true, message: 'Termo assinado com sucesso.' });
+  } catch (err) {
+    res.status(500).json({ error: 'Erro ao salvar assinatura.' });
+  }
+});
+
+// ============================================================
+// ROTAS PRIVADAS (EXIGEM LOGIN)
+// ============================================================
 router.use(requireAuth);
 
 // Helper para calcular o status geral e verificar vencimentos

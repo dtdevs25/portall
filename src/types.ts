@@ -8,6 +8,7 @@ export interface Company {
   name: string;
   cnpj?: string;
   isActive: boolean;
+  requiresSafetyTerm?: boolean;
   createdAt: string;
 }
 
@@ -100,6 +101,8 @@ export interface Pessoa {
   armario?: string | null;
   
   isApproved?: boolean;
+  termoAssinadoEm?: string;
+  termoAssinatura?: string;
 
   createdBy?: string;
   createdAt: string;

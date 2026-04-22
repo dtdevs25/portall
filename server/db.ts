@@ -50,11 +50,15 @@ export async function initDB(): Promise<void> {
       );
     `);
 
-    // Retrocompatibilidade: Garante que a coluna armario seja criada na tabela existente
-    await client.query(`
-      ALTER TABLE presenca_logs 
-      ADD COLUMN IF NOT EXISTS armario VARCHAR(50);
-    `);
+    // Retrocompatibilidade: Garante que as colunas novas existam
+    console.log('🔄 Verificando migrações de colunas...');
+    await client.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS is_safety BOOLEAN DEFAULT FALSE');
+    await client.query('ALTER TABLE presenca_logs ADD COLUMN IF NOT EXISTS armario VARCHAR(50)');
+    await client.query('ALTER TABLE companies ADD COLUMN IF NOT EXISTS requires_safety_term BOOLEAN DEFAULT FALSE');
+    await client.query('ALTER TABLE pessoas ADD COLUMN IF NOT EXISTS is_approved BOOLEAN DEFAULT TRUE');
+    await client.query('ALTER TABLE pessoas ADD COLUMN IF NOT EXISTS termo_assinado_at TIMESTAMPTZ');
+    await client.query('ALTER TABLE pessoas ADD COLUMN IF NOT EXISTS termo_assinatura TEXT');
+    console.log('✅ Migrações de colunas concluídas.');
 
     // Cria admin inicial se não existir nenhum usuário
     const { rows } = await client.query(
