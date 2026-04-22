@@ -58,6 +58,8 @@ export async function initDB(): Promise<void> {
     await client.query('ALTER TABLE pessoas ADD COLUMN IF NOT EXISTS is_approved BOOLEAN DEFAULT TRUE');
     await client.query('ALTER TABLE pessoas ADD COLUMN IF NOT EXISTS termo_assinado_at TIMESTAMPTZ');
     await client.query('ALTER TABLE pessoas ADD COLUMN IF NOT EXISTS termo_assinatura TEXT');
+    await client.query('ALTER TABLE pessoas ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE');
+    await client.query('CREATE INDEX IF NOT EXISTS idx_pessoas_active ON pessoas(is_active)');
     console.log('✅ Migrações de colunas concluídas.');
 
     // Cria admin inicial se não existir nenhum usuário

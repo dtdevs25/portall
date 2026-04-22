@@ -1390,6 +1390,7 @@ function PessoasView({ profile }: { profile: UserProfile }) {
   const [docType, setDocType] = useState<'CPF' | 'RG'>('CPF');
   const [coSearch, setCoSearch] = useState('');
   const [origSearch, setOrigSearch] = useState('');
+  const [showInactive, setShowInactive] = useState(false);
 
   useEffect(() => { fetchAll(); }, []);
 
@@ -1471,7 +1472,7 @@ function PessoasView({ profile }: { profile: UserProfile }) {
   const fetchAll = async () => {
     try {
       const [p, e, t, c] = await Promise.all([
-        api.get<Pessoa[]>('/pessoas'),
+        api.get<Pessoa[]>(`/pessoas?includeInactive=${showInactive}`),
         api.get<EmpresaTerceiro[]>('/empresas-terceiro'),
         api.get<TipoTreinamento[]>('/treinamentos/tipos'),
         api.get<Company[]>('/companies'),
@@ -1482,6 +1483,8 @@ function PessoasView({ profile }: { profile: UserProfile }) {
       setCompanies(c || []);
     } catch {}
   };
+
+  useEffect(() => { fetchAll(); }, [showInactive]);
 
   const openNew = () => { setForm(emptyPessoaForm()); setEditTarget(null); setShowForm(true); };
   
@@ -1523,6 +1526,15 @@ function PessoasView({ profile }: { profile: UserProfile }) {
     finally { setSaving(false); }
   };
 
+  const handleToggleStatus = async (p: Pessoa) => {
+    setSaving(true);
+    try {
+      await api.patch(`/pessoas/${p.id}/status`, { isActive: !p.isActive });
+      fetchAll();
+    } catch (err: any) { alert(err.error || 'Erro ao alterar status.'); }
+    finally { setSaving(false); }
+  };
+
   const confirmDelete = async () => {
     if (!deleteId) return;
     setSaving(true);
@@ -1561,13 +1573,21 @@ function PessoasView({ profile }: { profile: UserProfile }) {
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar..."
             className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-200 text-sm outline-none focus:ring-2 focus:ring-blue-500" />
         </div>
-        <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)}
-          className="px-3 py-2 rounded-xl border border-slate-200 text-sm bg-white outline-none">
-          <option value="">Todos os status</option>
-          <option value="liberado">Liberado</option>
-          <option value="a_vencer">A Vencer</option>
           <option value="bloqueado">Bloqueado</option>
         </select>
+
+        <div className="flex items-center gap-2 px-3 py-2 bg-white rounded-xl border border-slate-200 shadow-sm">
+          <input 
+            type="checkbox" 
+            id="show_inactive_toggle"
+            checked={showInactive}
+            onChange={e => setShowInactive(e.target.checked)}
+            className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300"
+          />
+          <label htmlFor="show_inactive_toggle" className="text-xs font-bold text-slate-600 cursor-pointer select-none">
+            Mostrar Inativos
+          </label>
+        </div>
       </div>
 
       {/* Table */}
@@ -1600,11 +1620,32 @@ function PessoasView({ profile }: { profile: UserProfile }) {
                   <td className="px-4 py-3"><span className="text-xs capitalize bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full font-medium">{p.tipoAcesso}</span></td>
                   <td className="px-4 py-3 text-sm text-slate-600">{p.empresaOrigemNome || '—'}</td>
                   <td className="px-4 py-3 text-sm text-slate-600">{fmtDate(p.liberadoAte)}</td>
-                  <td className="px-4 py-3"><StatusBadge status={p.statusAcesso} /></td>
+                  <td className="px-4 py-3">
+                    <div className="flex flex-col gap-1">
+                      <StatusBadge status={p.statusAcesso} />
+                      {!p.isActive && (
+                        <span className="text-[10px] font-black bg-slate-200 text-slate-500 px-1.5 py-0.5 rounded tracking-tighter uppercase w-fit">
+                          Desativado
+                        </span>
+                      )}
+                    </div>
+                  </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-end gap-1">
-                      <Button variant="ghost" size="sm" onClick={() => openEdit(p)}><Pencil size={14} /></Button>
-                      <Button variant="ghost" size="sm" onClick={() => setDeleteId(p.id)}><Trash2 size={14} /></Button>
+                      <Button variant="ghost" size="sm" onClick={() => openEdit(p)} title="Editar"><Pencil size={14} /></Button>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        onClick={() => handleToggleStatus(p)} 
+                        className={cn(p.isActive ? 'text-slate-400 hover:text-amber-600' : 'text-emerald-500 hover:text-emerald-600')}
+                        title={p.isActive ? 'Desativar' : 'Reativar'}
+                        disabled={saving}
+                      >
+                        {p.isActive ? <UserX size={14} /> : <UserPlus size={14} />}
+                      </Button>
+                      {profile.role === 'master' && (
+                        <Button variant="ghost" size="sm" onClick={() => setDeleteId(p.id)} title="Excluir Permanentemente"><Trash2 size={14} className="text-slate-300 hover:text-red-600" /></Button>
+                      )}
                     </div>
                   </td>
                 </tr>

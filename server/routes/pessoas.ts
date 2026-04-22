@@ -130,7 +130,9 @@ function mapFotoUrl(rawPath: string | null): string | null {
 // Master vê todas. Admin vê de todas as suas unidades vinculadas.
 // ============================================================
 router.get('/', async (req: AuthRequest, res: Response) => {
-  try {
+    const { includeInactive } = req.query;
+    const filterActive = includeInactive !== 'true';
+
     let pessoasData;
     const baseFields = `
       p.*, e.name as empresa_origem_nome, t.nome as atividade_nome,
@@ -150,9 +152,13 @@ router.get('/', async (req: AuthRequest, res: Response) => {
       ) pl ON true
     `;
 
+    const activeFilter = filterActive ? 'AND p.is_active = TRUE' : '';
+
     if (req.user?.role === 'master') {
       pessoasData = await query(
-        `SELECT ${baseFields} ${fromClause} ORDER BY p.nome_completo ASC`
+        `SELECT ${baseFields} ${fromClause} 
+         WHERE 1=1 ${activeFilter}
+         ORDER BY p.nome_completo ASC`
       );
     } else {
       pessoasData = await query(
@@ -164,6 +170,7 @@ router.get('/', async (req: AuthRequest, res: Response) => {
              SELECT company_id FROM user_companies WHERE user_id = $1
            )
          )
+         ${activeFilter}
          ORDER BY p.nome_completo ASC`,
         [req.user!.userId]
       );
@@ -248,7 +255,8 @@ router.get('/', async (req: AuthRequest, res: Response) => {
         treinamentos: tpps,
         lastPresenceStatus: p.last_presence_status,
         lastPresenceTimestamp: p.last_presence_timestamp,
-        armario: p.last_presence_status === 'entrada' ? p.current_armario : null
+        armario: p.last_presence_status === 'entrada' ? p.current_armario : null,
+        isActive: !!p.is_active
       };
     });
     
@@ -674,6 +682,52 @@ router.post('/:id/approve', async (req: AuthRequest, res: Response) => {
   } catch (err: any) {
     console.error('Approve person error:', err);
     res.status(500).json({ error: 'Erro ao aprovar cadastro.' });
+  }
+});
+
+router.patch('/:id/status', async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { isActive } = req.body;
+
+    if (isActive === undefined) {
+      res.status(400).json({ error: 'Status isActive é obrigatório.' });
+      return;
+    }
+
+    // Validação Multi-tenant
+    const hasAccess = await canAccessPessoa(req, id);
+    if (!hasAccess) {
+      res.status(403).json({ error: 'Você não tem permissão para alterar o status deste cadastro.' });
+      return;
+    }
+
+    const updated = await queryOne<{ id: string, nome_completo: string, documento: string }>(
+      `UPDATE pessoas SET is_active = $1, updated_at = NOW() WHERE id = $2 RETURNING id, nome_completo, documento`,
+      [isActive, id]
+    );
+
+    if (!updated) {
+      res.status(404).json({ error: 'Cadastro não encontrado.' });
+      return;
+    }
+
+    await query(
+      `INSERT INTO system_logs (user_id, action, entity_type, entity_id, details)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [
+        req.user!.userId,
+        isActive ? 'PESSOA_REATIVADA' : 'PESSOA_DESATIVADA',
+        'pessoa',
+        id,
+        JSON.stringify({ nome_completo: updated.nome_completo, documento: updated.documento })
+      ]
+    );
+
+    res.json({ success: true, isActive });
+  } catch (err: any) {
+    console.error('PATCH /pessoas/:id/status error:', err);
+    res.status(500).json({ error: 'Erro ao alterar status da pessoa.' });
   }
 });
 

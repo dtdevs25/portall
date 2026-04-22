@@ -12,11 +12,9 @@ import pessoasRoutes from './routes/pessoas.js';
 import presencasRoutes from './routes/presencas.js';
 import treinamentosRoutes from './routes/treinamentos.js';
 import empresasTerceiroRoutes from './routes/empresasTerceiro.js';
-import usersRoutes from './routes/users.js';
-import uploadRoutes from './routes/upload.js';
-import logsRoutes from './routes/logs.js';
 import notificationsRoutes from './routes/notifications.js';
 import { ensureBucket } from './minioClient.js';
+import { initCronJobs } from './cron.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -167,6 +165,7 @@ app.use((err: Error, _req: express.Request, res: express.Response, _next: expres
 async function start() {
   try {
     await initDB();
+    initCronJobs();
     try {
       await ensureBucket();
       console.log('✅ MinIO Bucket verificado com sucesso.');

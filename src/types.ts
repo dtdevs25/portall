@@ -105,6 +105,7 @@ export interface Pessoa {
   termoAssinatura?: string;
 
   createdBy?: string;
+  isActive: boolean;
   createdAt: string;
 }
 
