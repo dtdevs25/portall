@@ -2963,7 +2963,9 @@ export default function App() {
                 exit={{ opacity: 0, y: -10 }} 
                 transition={{ duration: 0.15 }}
               >
-                {activeTab === 'atividades'        && <AtividadesView profile={profile} />}
+                {activeTab === 'treinamentos'      && <AtividadesView profile={profile} />}
+                {activeTab === 'pessoas'           && <PessoasView profile={profile} />}
+                {activeTab === 'empresas_terceiro' && <EmpresasTerceiroView profile={profile} />}
                 {activeTab === 'companies'         && (profile.role === 'master' || profile.role === 'admin') && <CompaniesView profile={profile} />}
                 {activeTab === 'usuarios'          && <UsuariosView profile={profile} />}
                 {activeTab === 'portaria'          && <PortariaView profile={profile} companies={companies} />}
