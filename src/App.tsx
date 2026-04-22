@@ -609,8 +609,8 @@ function LoginPage({ onLogin }: { onLogin: (user: UserProfile) => void }) {
               )}
               <div className="flex gap-3 pt-2">
                 <Button variant="ghost" className="flex-1" onClick={() => setShowForgot(false)}>Cancelar</Button>
-                <Button type="submit" className="flex-1" disabled={forgotLoading}>
-                  {forgotLoading ? 'Enviando...' : 'Enviar Link'}
+                <Button type="submit" className="flex-1" disabled={forgotLoading || forgotMsg.includes('enviado')}>
+                  {forgotLoading ? 'Enviando...' : (forgotMsg.includes('enviado') ? 'E-mail Enviado' : 'Enviar Link')}
                 </Button>
               </div>
             </form>
