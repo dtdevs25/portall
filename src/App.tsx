@@ -1647,6 +1647,14 @@ function PessoasView({ profile }: { profile: UserProfile }) {
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-end gap-1">
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        onClick={() => window.open(`${window.location.origin}${window.location.pathname}?termToken=${p.id}`, '_blank')}
+                        title="Visualizar Termo de Segurança"
+                      >
+                        <ShieldCheck size={14} className="text-blue-500" />
+                      </Button>
                       <Button variant="ghost" size="sm" onClick={() => openEdit(p)} title="Editar"><Pencil size={14} /></Button>
                       <Button 
                         variant="ghost" 
