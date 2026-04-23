@@ -266,10 +266,11 @@ function StatusBadge({ status }: { status?: StatusAcesso }) {
 
 // ─── UI Primitives ───────────────────────────────────────────────────────────
 
-function Button({ children, onClick, variant = 'primary', className, disabled, type = 'button', size = 'md' }: {
+function Button({ children, onClick, variant = 'primary', className, disabled, type = 'button', size = 'md', title }: {
   children: React.ReactNode; onClick?: () => void;
   variant?: 'primary' | 'secondary' | 'danger' | 'ghost' | 'success';
   className?: string; disabled?: boolean; type?: 'button' | 'submit' | 'reset'; size?: 'sm' | 'md';
+  title?: string;
 }) {
   const v = {
     primary:   'bg-blue-600 text-white hover:bg-blue-700 shadow-sm',
@@ -280,7 +281,7 @@ function Button({ children, onClick, variant = 'primary', className, disabled, t
   }[variant];
   const s = size === 'sm' ? 'px-3 py-1.5 text-xs' : 'px-4 py-2 text-sm';
   return (
-    <button type={type} onClick={onClick} disabled={disabled}
+    <button type={type} onClick={onClick} disabled={disabled} title={title}
       className={cn('rounded-lg font-medium transition-all flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed', v, s, className)}>
       {children}
     </button>
@@ -939,6 +940,9 @@ function PortariaView({ profile, companies }: { profile: UserProfile, companies:
           className="px-4 py-3 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-600 outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
         >
           <option value="">Todos os Status</option>
+          <option value="liberado">Liberado</option>
+          <option value="a_vencer">A Vencer</option>
+          <option value="bloqueado">Bloqueado</option>
         </select>
       </div>
 
@@ -1969,8 +1973,8 @@ function SimpleListView<T extends { id: string; name?: string; nome?: string }>(
                   {columns.map((c, i) => <td key={i} className="px-4 py-3 text-sm text-slate-700">{c.render(item)}</td>)}
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-end gap-1">
-                      <Button variant="ghost" size="sm" onClick={() => { setEditItem(item); setShowForm(true); }}><Pencil size={14} /></Button>
-                      <Button variant="ghost" size="sm" onClick={() => setDeleteId(item.id)}><Trash2 size={14} /></Button>
+                      <Button variant="ghost" size="sm" onClick={() => { setEditItem(item); setShowForm(true); }} title="Editar"><Pencil size={14} /></Button>
+                      <Button variant="ghost" size="sm" onClick={() => setDeleteId(item.id)} title="Excluir"><Trash2 size={14} /></Button>
                     </div>
                   </td>
                 </tr>
@@ -2899,9 +2903,8 @@ export default function App() {
     checkSession();
   }, []);
 
-  const termToken = new URLSearchParams(window.location.search).get('termToken');
-
-  if (termToken) return <PublicTermSigner pessoaId={termToken} />;
+  const [urlTermToken] = useState(() => new URLSearchParams(window.location.search).get('termToken'));
+  if (urlTermToken) return <PublicTermSigner pessoaId={urlTermToken} />;
 
   useEffect(() => {
     if (profile) {
