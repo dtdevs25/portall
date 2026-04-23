@@ -1398,6 +1398,7 @@ function PessoasView({ profile }: { profile: UserProfile }) {
   const [showInactive, setShowInactive] = useState(false);
   const [situationFilter, setSituationFilter] = useState<'all' | 'active' | 'inactive'>('active');
   const [successMsg, setSuccessMsg] = useState('');
+  const [termView, setTermView] = useState<Pessoa | null>(null);
 
   useEffect(() => { fetchAll(); }, []);
 
@@ -1654,7 +1655,7 @@ function PessoasView({ profile }: { profile: UserProfile }) {
                       <Button 
                         variant="ghost" 
                         size="sm" 
-                        onClick={() => window.open(`${window.location.origin}${window.location.pathname}?termToken=${p.id}`, '_blank')}
+                        onClick={() => setTermView(p)}
                         title="Visualizar Termo de Segurança"
                       >
                         <ShieldCheck size={14} className="text-blue-500" />
@@ -1892,6 +1893,67 @@ function PessoasView({ profile }: { profile: UserProfile }) {
               </div>
               <p className="text-sm font-medium text-slate-600">{successMsg}</p>
               <Button className="w-full" onClick={() => setSuccessMsg('')}>Entendido</Button>
+            </div>
+          </Modal>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {termView && (
+          <Modal title="Termo de Segurança" onClose={() => setTermView(null)} size="md">
+            <div className="space-y-6">
+              {(() => {
+                const unit = companies.find(c => c.id === termView.companyId);
+                if (!unit?.requiresSafetyTerm) {
+                  return (
+                    <div className="p-4 bg-amber-50 rounded-xl border border-amber-100 text-amber-700 text-sm flex items-start gap-3">
+                      <AlertTriangle size={18} className="shrink-0" />
+                      <p>Esta unidade não exige a assinatura de termo de segurança para prestadores.</p>
+                    </div>
+                  );
+                }
+                if (termView.termoAssinadoEm) {
+                  return (
+                    <div className="space-y-4">
+                      <div className="p-4 bg-emerald-50 rounded-xl border border-emerald-100 text-emerald-700 text-sm flex items-center gap-3">
+                        <CheckCircle2 size={20} />
+                        <div>
+                          <p className="font-bold">Termo assinado!</p>
+                          <p className="text-xs">Assinado em {new Date(termView.termoAssinadoEm).toLocaleString('pt-BR')}</p>
+                        </div>
+                      </div>
+                      {termView.termoAssinatura && (
+                        <div className="border border-slate-200 rounded-xl p-2 bg-slate-50">
+                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 text-center">Assinatura Digital</p>
+                          <img src={termView.termoAssinatura} alt="Assinatura" className="max-h-32 mx-auto" />
+                        </div>
+                      )}
+                      <Button variant="ghost" className="w-full" onClick={() => window.open(`${window.location.origin}${window.location.pathname}?termToken=${termView.id}`, '_blank')}>
+                        <ExternalLink size={14} /> Ver Página do Termo
+                      </Button>
+                    </div>
+                  );
+                }
+                return (
+                  <div className="text-center space-y-4">
+                    <div className="bg-slate-50 p-6 rounded-2xl border-2 border-dashed border-slate-200 flex flex-col items-center">
+                      <QRCodeSVG value={`${window.location.origin}${window.location.pathname}?termToken=${termView.id}`} size={160} />
+                      <p className="text-xs text-slate-500 mt-4 max-w-[200px]">Peça para o colaborador ler o QR Code com o celular para assinar o termo.</p>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button variant="ghost" className="flex-1" onClick={() => {
+                        navigator.clipboard.writeText(`${window.location.origin}${window.location.pathname}?termToken=${termView.id}`);
+                        alert('Link copiado para a área de transferência!');
+                      }}>
+                        <Copy size={14} /> Copiar Link
+                      </Button>
+                      <Button className="flex-1" onClick={() => window.open(`${window.location.origin}${window.location.pathname}?termToken=${termView.id}`, '_blank')}>
+                        <ExternalLink size={14} /> Abrir Termo
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           </Modal>
         )}
