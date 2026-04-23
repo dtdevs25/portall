@@ -850,7 +850,6 @@ function PortariaView({ profile, companies }: { profile: UserProfile, companies:
       setLockerInput('');
     } else {
       setLockerPrompt({ pessoaId, status });
-      confirmOutput(pessoaId, status);
     }
   };
 
@@ -1206,6 +1205,17 @@ function PortariaView({ profile, companies }: { profile: UserProfile, companies:
         >
           <div className="space-y-4">
             <p className="text-sm text-slate-600">{lockerPrompt.status === 'entrada' ? 'Deseja informar um guarda-volumes?' : 'Deseja confirmar a saída?'}</p>
+            
+            {lockerPrompt.status === 'saida' && (() => {
+              const p = pessoas.find(x => x.id === lockerPrompt.pessoaId);
+              return p?.armario ? (
+                <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-center gap-3">
+                  <AlertTriangle className="text-amber-600" size={20} />
+                  <p className="text-[11px] font-bold text-amber-800 uppercase">Lembrete: Devolver Armário {p.armario}</p>
+                </div>
+              ) : null;
+            })()}
+
             {lockerPrompt.status === 'entrada' && (
               <Input label="Número do Armário (Opcional)" value={lockerInput} onChange={setLockerInput} placeholder="Ex: 15" />
             )}
